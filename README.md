@@ -1,3 +1,3 @@
-== pqsfinder package
+# pqsfinder package
 
 Hello world
