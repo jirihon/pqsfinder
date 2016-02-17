@@ -16,7 +16,7 @@ Unpack:
 tar -xzf R-devel.tar.gz
 ```
 
-Configure, use `--enable-R-shlib` option in case you want to run the newest R inside RStudio. It is possible, you will be required to install additional libraries (the corresponding package names are usually in the form `libXXX-dev`, where `XXX` is the name of the library).
+Configure with `--enable-R-shlib` option in case you want to run the newest R inside RStudio. It is possible, you will be required to install additional libraries (the corresponding package names are usually in the form `libXXX-dev`, where `XXX` is the name of the library).
 
 ```bash
 cd R-devel
@@ -41,4 +41,11 @@ source("https://bioconductor.org/biocLite.R")
 biocLite()
 
 biocLite(c("Rcpp", "GenomicRanges", "Biostrings", "flowCore", "devtools"))
+```
+
+Install `pqsfinder` package:
+
+```R
+library("devtools")
+install_github("jirihon/pqsfinder")
 ```
