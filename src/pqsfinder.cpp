@@ -37,7 +37,7 @@ using namespace std;
 // Implementation constants
 const int CACHE_SIZE = 1024*1024;
 const int RUN_CNT = 4;
-const int CHECK_INT_PERIOD = 100000;
+const int CHECK_INT_PERIOD = 1e7;
 const int USE_CACHE_TRESHOLD = 1000;
 
 typedef struct cache_entry {
@@ -328,6 +328,7 @@ void find_all_runs(
     const flags_t &flags,
     const scoring_t &sc,
     const string::const_iterator &ref,
+    const size_t len,
     string::const_iterator &pqs_start,
     pqs_t &pqs_best,
     cache_entry_t &pqs_cache,
@@ -378,18 +379,18 @@ void find_all_runs(
       if (i == 0)
         // Enforce G4 total length limit to be relative to the first G-run start
         find_all_runs(i+1, e, min(s + opts.max_len, end), m, run_re_c, opts, flags, sc,
-                   ref, s, pqs_best, pqs_cache, pqs_cnt, res);
+                   ref, len, s, pqs_best, pqs_cache, pqs_cnt, res);
       else if (i < 3)
         find_all_runs(i+1, e, end, m, run_re_c, opts, flags, sc,
-                   ref, pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
+                   ref, len, pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
       else {
         /* Check user interrupt after reasonable amount of PQS identified to react
          * on important user signals. I.e. he might want to abort the computation. */
-        if (++pqs_cnt % CHECK_INT_PERIOD == 0)
+        if (++pqs_cnt == CHECK_INT_PERIOD)
         {
+          pqs_cnt = 0;
           checkUserInterrupt();
-          if (flags.debug)
-            Rcout << m[0].first - ref << endl;
+          Rcout << "Search status: " << ceilf((m[0].first - ref)/(float)len*100) << " %\r";
         }
 
         if (pqs_best.score && pqs_start >= pqs_best.e)
@@ -479,7 +480,7 @@ void pqs_search(
   int pqs_cnt = 0;
 
   // Global sequence length is the only limit for the first G-run
-  find_all_runs(0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc, seq.begin(), pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
+  find_all_runs(0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc, seq.begin(), seq.length(), pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
 
   if (pqs_best.score)
     pqs_export(pqs_best.s - seq.begin(), pqs_best.e - pqs_best.s, pqs_best.score, res);
@@ -505,7 +506,9 @@ void pqs_search(
 //' @param use_cache Use cache for low complexity regions?
 //' @param use_re Use regular expression engine to validate quadruplex run?
 //' @param use_prof Enables profiling.
-//' @param debug Enables detailed debugging output.
+//' @param debug Enables detailed debugging output. Turn it on if you want
+//' to see all possible quadruplexes found at each positions and not just
+//' the best one.
 //' @return \code{\link{PQSViews}} object
 //'
 //' @examples

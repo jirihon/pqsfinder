@@ -18,7 +18,9 @@
 #' @param use_cache Use cache for low complexity regions?
 #' @param use_re Use regular expression engine to validate quadruplex run?
 #' @param use_prof Enables profiling.
-#' @param debug Enables detailed debugging output.
+#' @param debug Enables detailed debugging output. Turn it on if you want
+#' to see all possible quadruplexes found at each positions and not just
+#' the best one.
 #' @return \code{\link{PQSViews}} object
 #'
 #' @examples

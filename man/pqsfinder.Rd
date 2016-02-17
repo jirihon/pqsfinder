@@ -34,7 +34,9 @@ pqsfinder(subject, run_re = "G{1,5}.{0,5}G{1,5}", max_len = 70L,
 
 \item{use_prof}{Enables profiling.}
 
-\item{debug}{Enables detailed debugging output.}
+\item{debug}{Enables detailed debugging output. Turn it on if you want
+to see all possible quadruplexes found at each positions and not just
+the best one.}
 }
 \value{
 \code{\link{PQSViews}} object
