@@ -1,3 +1,11 @@
+/**
+ * Implementation of PQS search algorithm.
+ *
+ * Author: Jiri Hon <jiri.hon@gmail.com>
+ * Date: 2016/01/17
+ * Package: pqsfinder
+ */
+
 #include <Rcpp.h>
 #include <string>
 #include <algorithm>
@@ -11,42 +19,26 @@ using namespace std;
 
 /*
  * NOTE: Use Rcpp::checkUserInterrupt() every second
- * Conclusion: Cache is usefull just for dealing with almost G-complete sequences,
- * which does not usually occur in human genome
+ * Conclusion:
  */
 
 /*
- * Important notes to C++ iterators semantic
+ * Important notes to semantic of C++ iterators that are extensively used in this code:
  *
- * string::end
- * Returns an iterator pointing to the __past-the-end__ character of the string.
+ * string::end method returns an iterator pointing to the __past-the-end__ character
+ * of the string! The past-the-end character is a theoretical character that would
+ * follow the last character in the string. It __shall not be dereferenced.__
  *
- * The past-the-end character is a theoretical character that would follow
- * the last character in the string. It __shall not be dereferenced.__
- *
- * Because the ranges used by functions of the standard library __do not include__
- * the element pointed by their closing iterator, this function is often used
- * in combination with string::begin to specify a range including all
- * the characters in the string.
+ * The reason for that is because the ranges used by functions of the standard library
+ * __do not include__ the element pointed by their closing iterator.
  */
 
-typedef struct results {
-  vector<int> start;
-  vector<int> len;
-  vector<int> score;
-  int *density;
-} results_t;
 
-void pqs_export(int start, int len, int score, results_t &res) {
-  res.start.push_back(start + 1);
-  res.len.push_back(len);
-  res.score.push_back(score);
-}
-
-typedef struct scoring {
-  int g_bonus;
-  int bulge_penalty;
-} scoring_t;
+// Implementation constants
+const int CACHE_SIZE = 1024*1024;
+const int RUN_CNT = 4;
+const int CHECK_INT_PERIOD = 100000;
+const int USE_CACHE_TRESHOLD = 1000;
 
 typedef struct cache_entry {
   string seq;
@@ -55,20 +47,21 @@ typedef struct cache_entry {
   int cnt;
 } cache_entry_t;
 
-typedef struct pqs {
-  string::const_iterator s;
-  string::const_iterator e;
-  int score;
-} pqs_t;
+/* Cache table for low complexity regions. It is usefull just for dealing with almost
+ * G-complete sequence regions, which does not usually occur in human genome. */
+cache_entry_t cache_table[CACHE_SIZE];
 
-class run_match {
-public:
-  string::const_iterator first;
-  string::const_iterator second;
-  int length() {
-    return second - first;
-  };
-};
+typedef struct results {
+  vector<int> start;
+  vector<int> len;
+  vector<int> score;
+  int *density;
+} results_t;
+
+typedef struct scoring {
+  int g_bonus;
+  int bulge_penalty;
+} scoring_t;
 
 typedef struct flags {
   bool use_cache;
@@ -84,13 +77,31 @@ typedef struct opts {
   int loop_max_len;
 } opts_t;
 
-const int CACHE_SIZE = 1024*1024;
-const int RUN_CNT = 4;
-const int CHECK_INT_PERIOD = 100000;
-const int USE_CACHE_TRESHOLD = 1000;
+// Structure to store the currently best pqs during search
+typedef struct pqs {
+  string::const_iterator s;
+  string::const_iterator e;
+  int score;
+} pqs_t;
 
-cache_entry_t cache_table[CACHE_SIZE];
+// Class representing one run from quadruplex
+class run_match {
+public:
+  string::const_iterator first;
+  string::const_iterator second;
+  int length() {
+    return second - first;
+  };
+};
 
+
+/**
+ * Hash function for PQS cache.
+ *
+ * @param s Begin string iterator
+ * @param e End string iterator
+ * @return Hash value
+ */
 inline unsigned cache_hash(string::const_iterator s, const string::const_iterator &e)
 {
   unsigned hash = 0;
@@ -101,6 +112,13 @@ inline unsigned cache_hash(string::const_iterator s, const string::const_iterato
   return hash % CACHE_SIZE;
 }
 
+/**
+ * Get entry from cache table if present.
+ *
+ * @param s Begin string iterator
+ * @param e End string iterator
+ * @return Pointer to cache entry on success, NULL otherwise.
+ */
 inline cache_entry_t *cache_get(const string::const_iterator &s, const string::const_iterator &e)
 {
   unsigned hash = cache_hash(s, e);
@@ -110,6 +128,13 @@ inline cache_entry_t *cache_get(const string::const_iterator &s, const string::c
     return &cache_table[hash];
 }
 
+/**
+ * Save entry in cache table
+ *
+ * @param s Begin string iterator
+ * @param e End string iterator
+ * @param entry Cache entry
+ */
 inline void cache_put(const string::const_iterator &s, const string::const_iterator &e, const cache_entry_t &entry)
 {
   unsigned hash = cache_hash(s, e);
@@ -120,6 +145,22 @@ inline void cache_put(const string::const_iterator &s, const string::const_itera
   }
 }
 
+
+/**
+ * Export quadruplex into results structure
+ *
+ * @param start PQS start offset
+ * @param len PQS length
+ * @param score PQS score
+ * @param res Output results structure
+ */
+inline void pqs_export(int start, int len, int score, results_t &res)
+{
+  res.start.push_back(start + 1);
+  res.len.push_back(len);
+  res.score.push_back(score);
+}
+
 /**
  * Print quadruplex summary
  *
@@ -128,13 +169,14 @@ inline void cache_put(const string::const_iterator &s, const string::const_itera
  * @param ref Reference point, typically start of sequence
  * @param cnt Counter
  */
-void print_pqs(run_match m[], int score, string::const_iterator ref, int cnt)
+inline void print_pqs(run_match m[], int score, string::const_iterator ref, int cnt)
 {
   Rcout << cnt << ": " << m[0].first - ref << "[" << string(m[0].first, m[0].second) << "]";
   for (int i = 1; i < RUN_CNT; i++)
     Rcout << string(m[i-1].second, m[i].first) << "[" << string(m[i].first, m[i].second) << "]";
   Rcout << " " << score << endl;
 }
+
 
 /**
  * Check lenghts of runs in quadruplex
@@ -169,7 +211,8 @@ inline void check_run_lengths(int &score, run_match m[])
 /**
  * Count number of G's in G-run
  *
- * This simple counting allows multiple bulges in one g-run.
+ * NOTE: This simple counting implementation allows multiple bulges
+ * in one g-run.
  *
  * @param m G-run match
  * @return Number of guanines in G-run
@@ -235,7 +278,7 @@ inline void check_run_content(int &score, run_match m[], const scoring_t &sc)
  * @param flags Algorithm flags
  * @return True on success, false otherwise
  */
-inline bool run_search(
+inline bool find_run(
     string::const_iterator s,
     string::const_iterator e,
     run_match &m,
@@ -275,7 +318,7 @@ inline bool run_search(
  * @param m Array of run matches
  * @param run_re_c Compiled run regular expression
  */
-void match_runs(
+void find_all_runs(
     int i,
     string::const_iterator start,
     string::const_iterator end,
@@ -316,7 +359,7 @@ void match_runs(
       }
       pqs_cache.score = 0;
     }
-    for (e = end; s < e && run_search(s, e, m[i], run_re_c, opts, flags); e--)
+    for (e = end; s < e && find_run(s, e, m[i], run_re_c, opts, flags); e--)
     {
       if (m[i].length() < opts.run_min_len)
         break; // skip too short G-run, try next position
@@ -334,10 +377,10 @@ void match_runs(
 
       if (i == 0)
         // Enforce G4 total length limit to be relative to the first G-run start
-        match_runs(i+1, e, min(s + opts.max_len, end), m, run_re_c, opts, flags, sc,
+        find_all_runs(i+1, e, min(s + opts.max_len, end), m, run_re_c, opts, flags, sc,
                    ref, s, pqs_best, pqs_cache, pqs_cnt, res);
       else if (i < 3)
-        match_runs(i+1, e, end, m, run_re_c, opts, flags, sc,
+        find_all_runs(i+1, e, end, m, run_re_c, opts, flags, sc,
                    ref, pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
       else {
         /* Check user interrupt after reasonable amount of PQS identified to react
@@ -385,7 +428,15 @@ void match_runs(
   }
 }
 
-void print_res(results_t &res, const string::const_iterator &ref) {
+
+/**
+ * Print results structure.
+ *
+ * @param res Results
+ * @param ref Reference iterator to the beginning of the sequence.
+ */
+void print_res(results_t &res, const string::const_iterator &ref)
+{
   Rcout << "Results" << endl;
   for (unsigned i = 0; i < res.start.size(); i++) {
     Rcout << "PQS[" << i << "]: " << res.start[i] << " "
@@ -393,6 +444,72 @@ void print_res(results_t &res, const string::const_iterator &ref) {
   }
 }
 
+
+/**
+ * Perform quadruplex search on given DNA sequence.
+ *
+ * @param seq DNA sequence
+ * @param run_re Run regular expression
+ * @param sc Scoring options
+ * @param opt Algorihtm options
+ * @param flags Algorithm flags
+ * @param res Results
+ */
+void pqs_search(
+    const string &seq,
+    const string &run_re,
+    const scoring_t &sc,
+    const opts_t &opts,
+    const flags_t &flags,
+    results_t &res)
+{
+  boost::regex run_re_c(run_re);
+  run_match m[RUN_CNT];
+
+  cache_entry_t pqs_cache;
+  pqs_cache.len = 0;
+  // Clear cache table
+  for (int i = 0; i < CACHE_SIZE; ++i)
+    cache_table[i] = pqs_cache;
+
+  pqs_t pqs_best;
+  pqs_best.score = 0;
+
+  string::const_iterator pqs_start;
+  int pqs_cnt = 0;
+
+  // Global sequence length is the only limit for the first G-run
+  find_all_runs(0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc, seq.begin(), pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
+
+  if (pqs_best.score)
+    pqs_export(pqs_best.s - seq.begin(), pqs_best.e - pqs_best.s, pqs_best.score, res);
+
+  // print_res(res, seq.begin());
+}
+
+
+//' Identificate potential quadruplex forming sequences.
+//'
+//' Function for identification of all potential intramolecular quadruplex
+//' patterns (PQS) in DNA sequence.
+//'
+//' @param subject DNAString object.
+//' @param run_re Regular expression specifying one run of quadruplex.
+//' @param max_len Maximal lenth of PQS.
+//' @param run_min_len Minimal length of quadruplex run.
+//' @param run_max_len Maximal length of quadruplex run.
+//' @param loop_min_len Minimal length of quadruplex loop.
+//' @param loop_max_len Maxmimal length of quadruplex loop.
+//' @param g_bonus Score bonus for one complete G tetrade.
+//' @param bulge_penalty Penalization for a bulge in quadruplex run.
+//' @param use_cache Use cache for low complexity regions?
+//' @param use_re Use regular expression engine to validate quadruplex run?
+//' @param use_prof Enables profiling.
+//' @param debug Enables detailed debugging output.
+//' @return \code{\link{PQSViews}} object
+//'
+//' @examples
+//' pv <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
 //'
 // [[Rcpp::export]]
 SEXP pqsfinder(
@@ -410,27 +527,25 @@ SEXP pqsfinder(
     bool use_prof = 0,
     bool debug = 0)
 {
-#ifdef _GLIBCXX_DEBUG
-  if (use_prof)
-    ProfilerStart("samples.log");
-#endif
-
   Function as_character("as.character");
+  Function get_class("class");
+
+  CharacterVector subject_class = as_character(get_class(subject));
+
+  if (subject_class[0] != "DNAString")
+    stop("Subject must be DNAString object.");
+
   string seq = as<string>(as_character(subject));
 
   Rcout << "G-run regexp: " << run_re << endl;
-  boost::regex run_re_c(run_re);
+  Rcout << "Use cache: " << use_cache << endl;
+  Rcout << "Use regexp engine: " << use_re << endl;
+  Rcout << "Debug: " << debug << endl;
+  Rcout << "Input sequence length: " << seq.length() << endl;
 
   if (run_re != "G{1,5}.{0,5}G{1,5}")
-  // Override user flag
+    // User specified its own regexp, force to use regexp engine
     use_re = true;
-
-  Rcout << "Use cache: " << use_cache << endl;
-  Rcout << "Use regexp: " << use_re << endl;
-  Rcout << "Debug: " << debug << endl;
-  Rcout << "Input length: " << seq.length() << endl;
-
-  run_match m[RUN_CNT];
 
   flags_t flags;
   flags.use_cache = use_cache;
@@ -444,34 +559,26 @@ SEXP pqsfinder(
   opts.run_max_len = run_max_len;
   opts.run_min_len = run_min_len;
 
-  pqs_t pqs_best;
-  pqs_best.score = 0;
-
-  cache_entry_t pqs_cache;
-  pqs_cache.len = 0;
-  // Clear cache table
-  for (int i = 0; i < CACHE_SIZE; ++i)
-    cache_table[i] = pqs_cache;
-
-  string::const_iterator pqs_start;
-
   scoring_t sc;
   sc.g_bonus = g_bonus;
   sc.bulge_penalty = bulge_penalty;
 
-  int pqs_cnt = 0;
-
   results_t res;
   res.density = (int *)calloc(seq.length(), sizeof(int));
   if (res.density == NULL)
-    Rcpp::stop("Unable to allocate enough memory for results.");
+    stop("Unable to allocate enough memory for results.");
 
-  // Global sequence length is the only limit for the first G-run
-  match_runs(0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc, seq.begin(), pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
-  if (pqs_best.score)
-    pqs_export(pqs_best.s - seq.begin(), pqs_best.e - pqs_best.s, pqs_best.score, res);
+  #ifdef _GLIBCXX_DEBUG
+  if (use_prof)
+    ProfilerStart("samples.log");
+  #endif
 
-  // print_res(res, seq.begin());
+  pqs_search(seq, run_re, sc, opts, flags, res);
+
+  #ifdef _GLIBCXX_DEBUG
+  if (use_prof)
+    ProfilerStop();
+  #endif
 
   NumericVector res_start(res.start.begin(), res.start.end());
   NumericVector res_width(res.len.begin(), res.len.end());
@@ -482,11 +589,6 @@ SEXP pqsfinder(
     res_density[i] = res.density[i];
 
   free(res.density);
-
-#ifdef _GLIBCXX_DEBUG
-  if (use_prof)
-    ProfilerStop();
-#endif
 
   Function pqsviews("PQSViews");
   return pqsviews(subject, res_start, res_width, res_score, res_density);

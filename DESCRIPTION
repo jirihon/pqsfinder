@@ -4,9 +4,9 @@ Title: Identification of potential quadruplex forming sequences
 Version: 0.1.0
 Authors@R: c(person("Jiri", "Hon", role = c("aut", "cre"),
                     email = "jiri.hon@gmail.com"),
-             person("Matej", "Lexa", role = "aut",
+             person("Matej", "Lexa", role = "ctb",
                     email = "lexa@fi.muni.cz"),
-             person("Tomas", "Martinek", role = "aut",
+             person("Tomas", "Martinek", role = "ctb",
                     email = "martinto@fit.vutbr.cz"))
 Author: Jiri Hon, Matej Lexa and Tomas Martinek
 Maintainer: Jiri Hon <jiri.hon@gmail.com>

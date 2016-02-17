@@ -9,10 +9,12 @@
 
 #' An S4 class to represent potential quadruplex forming sequences.
 #'
+#' Represents potential quadruplex forming sequences found by \code{\link{pqsfinder}}
+#' function. This is a subclass of \code{\link{XStringViews-class}} class and adds
+#' one more slot.
+#'
 #' @slot density Numbers of PQS (potential quadruplex forming sequences)
 #'               starting at each position in input sequence.
-#' @method score Returns vector of PQS score.
-#' @method density Returns PQS density vector.
 #'
 .PQSViews <- setClass(
   "PQSViews",
@@ -31,8 +33,10 @@
 
 #' PQSViews class constructor.
 #'
-#' User friendly constructor of PQSViews class representing potential
-#' quadruplex forming sequences (PQS).
+#' User friendly constructor for PQSViews class representing potential
+#' quadruplex forming sequences (PQS). PQSViews is a subclass of
+#' \code{\link{XStringViews}} class and adds one more slot to store
+#' PQS density.
 #'
 #' @param subject DNAString object.
 #' @param start Vector of PQS start positions.
@@ -43,6 +47,10 @@
 #'
 #' @examples
 #' pv <- PQSViews(DNAString("CGGGCGGGGC"), 1:2, 2:3, 10:11, 1:10)
+#' start(pv)
+#' width(pv)
+#' score(pv)
+#' density(pv)
 #'
 PQSViews <- function(
   subject, start, width, score, density)
@@ -80,14 +88,12 @@ setMethod("density", "PQSViews", function(x) x@density)
 ## NOTE: Heavily based on Biostrings package, file XStringViews-class.R
 ##
 
-
 ## nchar(get_view(x, start, end)) is always end-start+1
 ##
 .get_view <- function(x, start, end)
 {
   as.character(subseq(x, start, end))
 }
-
 
 ## nchar(get_snippet(x, start, end, snippetWidth)) is <= snippetWidth
 ##
