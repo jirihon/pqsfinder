@@ -1,0 +1,8 @@
+exportPattern("^[[:alpha:]]+")
+
+importFrom(Rcpp, evalCpp)
+import(GenomicRanges)
+import(Biostrings)
+import(IRanges)
+
+useDynLib(pqsfinder)

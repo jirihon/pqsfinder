@@ -1,0 +1,27 @@
+Package: pqsfinder
+Type: Package
+Title: Identification of potential quadruplex forming sequences
+Version: 0.1.0
+Authors@R: c(person("Jiri", "Hon", role = c("aut", "cre"),
+                    email = "jiri.hon@gmail.com"),
+             person("Matej", "Lexa", role = "aut",
+                    email = "lexa@fi.muni.cz"),
+             person("Tomas", "Martinek", role = "aut",
+                    email = "martinto@fit.vutbr.cz"))
+Author: Jiri Hon, Matej Lexa and Tomas Martinek
+Maintainer: Jiri Hon <jiri.hon@gmail.com>
+Description: This package provides functions for identification of potential
+    intramolecular quadruplex patterns in DNA sequence.
+    The main functionality is to detect the positions of subsequences capable of
+    folding into an intramolecular G4-quadruplex in a much larger sequence.
+License: BSD_2_clause
+LazyData: TRUE
+Depends:
+    Biostrings
+Imports:
+    Rcpp (>= 0.12.3),
+    GenomicRanges,
+    IRanges,
+    methods
+LinkingTo: Rcpp, BH, flowCore
+RoxygenNote: 5.0.1

@@ -1,0 +1,10 @@
+#  GNUMakefile
+
+# Just a snippet to stop executing under other make(1) commands
+# that won't understand these lines
+ifneq (,)
+This makefile requires GNU Make.
+endif
+
+PKG_LIBS = `${R_HOME}/bin/Rscript -e "flowCore:::LdFlags()"` -lprofiler
+PKG_CXXFLAGS = -D_GLIBCXX_DEBUG -Wall -Wextra -pedantic
