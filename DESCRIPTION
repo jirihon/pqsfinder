@@ -14,7 +14,7 @@ Description: This package provides functions for identification of potential
     intramolecular quadruplex patterns in DNA sequence.
     The main functionality is to detect the positions of subsequences capable of
     folding into an intramolecular G4-quadruplex in a much larger sequence.
-License: BSD_2_clause
+License: BSD_2_clause + file LICENSE
 LazyData: TRUE
 Depends:
     Biostrings
