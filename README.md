@@ -14,13 +14,13 @@ Unpack:
 tar -xzf R-devel.tar.gz
 ```
 
-Configure with `--enable-R-shlib` option in case you want to run the newest R inside RStudio. It is possible, you will be required to install additional libraries (the corresponding package names are usually in the form `libXXX-dev`, where `XXX` is the name of the library).
+Configure with `--enable-R-shlib` option in case you want to run the newest R inside RStudio. It is possible, you will be required to install additional libraries. The corresponding package names are usually in the form `libXXX-dev`, where `XXX` is the name of the library.
 ```bash
 cd R-devel
 ./configure --enable-R-shlib=yes
 ```
 
-**Only** compile. There is no reason to run `make install` as it can be run directly from the compilation folder without messing up your system.
+**Only** compile. There is no reason to run `make install` as the resulting binary can be run directly from the compilation folder without messing up your system.
 ```bash
 make
 ```
