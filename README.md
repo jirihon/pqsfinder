@@ -20,7 +20,7 @@ cd R-devel
 ./configure --enable-R-shlib=yes
 ```
 
-Compile R:
+**Only** compile. There is no reason to run `make install` as it can be run directly from the compilation folder without messing up your system.
 ```bash
 make
 ```
@@ -30,7 +30,7 @@ Run:
 ./bin/R
 ```
 
-Install Bioconductor and additional package dependencies:
+Install Bioconductor and `pqsfinder` package dependencies:
 ```R
 source("https://bioconductor.org/biocLite.R")
 biocLite()
@@ -38,7 +38,7 @@ biocLite()
 biocLite(c("Rcpp", "GenomicRanges", "Biostrings", "flowCore", "devtools"))
 ```
 
-Install `pqsfinder` package:
+Install `pqsfinder` package directly from GitHub:
 ```R
 library("devtools")
 install_github("jirihon/pqsfinder")
