@@ -26,7 +26,7 @@
 #' @examples
 #' pv <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
 #'
-pqsfinder <- function(subject, run_re = "G{1,5}.{0,5}G{1,5}", max_len = 70L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, g_bonus = 2L, bulge_penalty = 3L, use_cache = 1L, use_re = 0L, use_prof = 0L, debug = 0L) {
+pqsfinder <- function(subject, run_re = "G{1,5}.{0,5}G{1,5}", max_len = 70L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, g_bonus = 20L, bulge_penalty = 10L, use_cache = 1L, use_re = 0L, use_prof = 0L, debug = 0L) {
     .Call('pqsfinder_pqsfinder', PACKAGE = 'pqsfinder', subject, run_re, max_len, run_min_len, run_max_len, loop_min_len, loop_max_len, g_bonus, bulge_penalty, use_cache, use_re, use_prof, debug)
 }
 

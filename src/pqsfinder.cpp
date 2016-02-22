@@ -17,10 +17,6 @@
 using namespace Rcpp;
 using namespace std;
 
-/*
- * NOTE: Use Rcpp::checkUserInterrupt() every second
- * Conclusion:
- */
 
 /*
  * Important notes to semantic of C++ iterators that are extensively used in this code:
@@ -37,7 +33,7 @@ using namespace std;
 // Implementation constants
 const int CACHE_SIZE = 1024*1024;
 const int RUN_CNT = 4;
-const int CHECK_INT_PERIOD = 1e7;
+const int CHECK_INT_PERIOD = 2e7;
 const int USE_CACHE_TRESHOLD = 1000;
 
 typedef struct cache_entry {
@@ -267,6 +263,55 @@ inline void check_run_content(int &score, run_match m[], const scoring_t &sc)
     score = 0;
 }
 
+
+/**
+ * Check loop lengths
+ *
+ * @param score Quadruplex score
+ * @param m Quadruples runs
+ * @param sc Scoring table
+ */
+inline void check_loop_lengths(int &score, run_match m[], const scoring_t &sc)
+{
+  int l1, l2, l3;
+  l1 = m[1].first - m[0].second;
+  l2 = m[2].first - m[1].second;
+  l3 = m[3].first - m[2].second;
+
+  int mean = (l1 + l2 + l3)/3;
+
+  int d1, d2, d3;
+  d1 = (l1 - mean)*(l1 - mean);
+  d2 = (l2 - mean)*(l2 - mean);
+  d3 = (l3 - mean)*(l3 - mean);
+
+  int s = sqrt((d1 + d2 + d3)/3);
+
+  score = max(score - mean - s, 0);
+}
+
+/**
+ * Check GC skewness
+ *
+ * @param score Quadruplex score
+ * @param m Quadruples runs
+ * @param sc Scoring table
+ */
+inline void check_gc_skew(int &score, run_match m[], const scoring_t &sc)
+{
+  int gc_skew = 0;
+
+  // TODO: Implement exactly the same GC skew calculation as published in journal
+  for (string::const_iterator it = m[0].first; it < m[3].second; ++it) {
+    if (*it == 'G')
+      ++gc_skew;
+    else if (*it == 'C')
+      --gc_skew;
+  }
+  int run_sum_len = m[0].length() + m[1].length() + m[2].length() + m[3].length();
+  score = score - (run_sum_len - max(gc_skew, 0));
+}
+
 /**
  * Perform run search on particular sequence region
  *
@@ -403,6 +448,10 @@ void find_all_runs(
         check_run_lengths(score, m);
         if (score)
           check_run_content(score, m, sc);
+        if (score)
+          check_loop_lengths(score, m, sc);
+        // if (score)
+        //   check_gc_skew(score, m, sc);
 
         if (score) {
           ++res.density[pqs_start - ref];
@@ -523,8 +572,8 @@ SEXP pqsfinder(
     int run_max_len = 11,
     int loop_min_len = 0,
     int loop_max_len = 30,
-    int g_bonus = 2,
-    int bulge_penalty = 3,
+    int g_bonus = 20,
+    int bulge_penalty = 10,
     bool use_cache = 1,
     bool use_re = 0,
     bool use_prof = 0,
