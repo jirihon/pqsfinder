@@ -19,7 +19,7 @@ using namespace std;
 
 
 /*
- * Important notes to semantic of C++ iterators that are extensively used in this code:
+ * Important notes to C++ iterator semantics that are extensively used in this code:
  *
  * string::end method returns an iterator pointing to the __past-the-end__ character
  * of the string! The past-the-end character is a theoretical character that would
@@ -57,7 +57,7 @@ public:
   results(int seq_len) {
     this->density = (int *)calloc(seq_len, sizeof(int));
     if (this->density == NULL)
-      stop("Unable to allocate enough memory for results density vector.");
+      stop("Unable to allocate memory for results density vector.");
   }
   ~results() {
     if (this->density != NULL)
