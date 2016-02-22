@@ -6,8 +6,9 @@
 \usage{
 pqsfinder(subject, run_re = "G{1,5}.{0,5}G{1,5}", max_len = 70L,
   run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L,
-  loop_max_len = 30L, g_bonus = 2L, bulge_penalty = 3L, use_cache = 1L,
-  use_re = 0L, use_prof = 0L, debug = 0L)
+  loop_max_len = 30L, g_bonus = 20L, bulge_penalty = 10L,
+  user_fn = NULL, use_cache = 1L, use_re = 0L, use_prof = 0L,
+  debug = 0L)
 }
 \arguments{
 \item{subject}{DNAString object.}
@@ -27,6 +28,14 @@ pqsfinder(subject, run_re = "G{1,5}.{0,5}G{1,5}", max_len = 70L,
 \item{g_bonus}{Score bonus for one complete G tetrade.}
 
 \item{bulge_penalty}{Penalization for a bulge in quadruplex run.}
+
+\item{user_fn}{Custom quadruplex scoring function. It takes the following 10
+arguments: \code{subject} - Input DNAString object, \code{score} - implicit PQS score,
+\code{start} - PQS start position, \code{width} - PQS width, \code{loop_1} - start pos. of loop #1,
+\code{run_2} - start pos. of run #2, \code{loop_2} - start pos. of loop #2,
+\code{run_3} - start pos. of run #3, \code{loop_3} - start pos. of loop #3,
+\code{run_4} - start pos. of run #4. Return value of the function should be new score
+represented as asingle integer value.}
 
 \item{use_cache}{Use cache for low complexity regions?}
 

@@ -47,17 +47,55 @@ typedef struct cache_entry {
  * G-complete sequence regions, which does not usually occur in human genome. */
 cache_entry_t cache_table[CACHE_SIZE];
 
-typedef struct results {
+class results {
+public:
   vector<int> start;
   vector<int> len;
   vector<int> score;
   int *density;
-} results_t;
 
-typedef struct scoring {
+  results(int seq_len) {
+    this->density = (int *)calloc(seq_len, sizeof(int));
+    if (this->density == NULL)
+      stop("Unable to allocate enough memory for results density vector.");
+  }
+  ~results() {
+    if (this->density != NULL)
+      free(this->density);
+  }
+  void save(const int start, const int len, const int score) {
+    this->start.push_back(start + 1);
+    this->len.push_back(len);
+    this->score.push_back(score);
+  }
+  void print(const string::const_iterator &ref) const {
+    Rcout << "Results" << endl;
+    for (unsigned i = 0; i < this->start.size(); i++) {
+      Rcout << "PQS[" << i << "]: " << this->start[i] << " "
+            << string(ref + this->start[i], ref + this->start[i] + this->len[i])
+            << " " << this->score[i] << endl;
+    }
+  }
+};
+
+
+class scoring {
+public:
   int g_bonus;
   int bulge_penalty;
-} scoring_t;
+  Function *user_fn;
+
+  scoring() {
+    user_fn = NULL;
+  }
+  ~scoring() {
+    if (user_fn != NULL)
+      delete user_fn;
+  }
+  void set_user_fn(SEXP user_fn) {
+    this->user_fn = new Function(user_fn);
+  }
+};
 
 typedef struct flags {
   bool use_cache;
@@ -85,7 +123,7 @@ class run_match {
 public:
   string::const_iterator first;
   string::const_iterator second;
-  int length() {
+  int length() const {
     return second - first;
   };
 };
@@ -142,20 +180,7 @@ inline void cache_put(const string::const_iterator &s, const string::const_itera
 }
 
 
-/**
- * Export quadruplex into results structure
- *
- * @param start PQS start offset
- * @param len PQS length
- * @param score PQS score
- * @param res Output results structure
- */
-inline void pqs_export(int start, int len, int score, results_t &res)
-{
-  res.start.push_back(start + 1);
-  res.len.push_back(len);
-  res.score.push_back(score);
-}
+
 
 /**
  * Print quadruplex summary
@@ -165,7 +190,7 @@ inline void pqs_export(int start, int len, int score, results_t &res)
  * @param ref Reference point, typically start of sequence
  * @param cnt Counter
  */
-inline void print_pqs(run_match m[], int score, string::const_iterator ref, int cnt)
+inline void print_pqs(const run_match m[], int score, const string::const_iterator ref, const int cnt)
 {
   Rcout << cnt << ": " << m[0].first - ref << "[" << string(m[0].first, m[0].second) << "]";
   for (int i = 1; i < RUN_CNT; i++)
@@ -181,7 +206,7 @@ inline void print_pqs(run_match m[], int score, string::const_iterator ref, int 
  * @param m Quadruplex runs
  * @param sc Scoring table
  */
-inline void check_run_lengths(int &score, run_match m[])
+inline void check_run_lengths(int &score, const run_match m[])
 {
   int w1,w2,w3,w4;
   w1 = m[0].length();
@@ -228,7 +253,7 @@ inline int count_g_num(const run_match &m) {
  * @param m Quadruples runs
  * @param sc Scoring table
  */
-inline void check_run_content(int &score, run_match m[], const scoring_t &sc)
+inline void check_run_content(int &score, const run_match m[], const scoring &sc)
 {
   int g1,g2,g3,g4,w1,w2,w3,w4;
   w1 = m[0].length();
@@ -271,7 +296,7 @@ inline void check_run_content(int &score, run_match m[], const scoring_t &sc)
  * @param m Quadruples runs
  * @param sc Scoring table
  */
-inline void check_loop_lengths(int &score, run_match m[], const scoring_t &sc)
+inline void check_loop_lengths(int &score, const run_match m[], const scoring &sc)
 {
   int l1, l2, l3;
   l1 = m[1].first - m[0].second;
@@ -290,6 +315,37 @@ inline void check_loop_lengths(int &score, run_match m[], const scoring_t &sc)
   score = max(score - mean - s, 0);
 }
 
+
+/**
+ * Check user scoring function
+ *
+ * @param score Quadruplex score
+ * @param m Quadruples runs
+ * @param sc Scoring table
+ * @example user function in R
+   my_fn <- function(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4) {
+     print(subject)
+     cat(score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4, "\n")
+     return(score)
+   }
+ */
+inline void check_user_fn(int &score, const run_match m[], const scoring &sc, SEXP subject, const string::const_iterator ref)
+{
+  int start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4;
+
+  start = m[0].first - ref + 1;
+  width = m[3].second - m[0].first;
+  loop_1 = m[0].second - ref + 1;
+  run_2 = m[1].first - ref + 1;
+  loop_2 = m[1].second - ref + 1;
+  run_3 = m[2].first - ref + 1;
+  loop_3 = m[2].second - ref + 1;
+  run_4 = m[3].first - ref + 1;
+
+  score = as<int>((*sc.user_fn)(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4));
+}
+
+
 /**
  * Check GC skewness
  *
@@ -297,7 +353,7 @@ inline void check_loop_lengths(int &score, run_match m[], const scoring_t &sc)
  * @param m Quadruples runs
  * @param sc Scoring table
  */
-inline void check_gc_skew(int &score, run_match m[], const scoring_t &sc)
+inline void check_gc_skew(int &score, run_match m[], const scoring &sc)
 {
   int gc_skew = 0;
 
@@ -364,6 +420,7 @@ inline bool find_run(
  * @param run_re_c Compiled run regular expression
  */
 void find_all_runs(
+    SEXP subject,
     int i,
     string::const_iterator start,
     string::const_iterator end,
@@ -371,14 +428,14 @@ void find_all_runs(
     const boost::regex &run_re_c,
     const opts_t &opts,
     const flags_t &flags,
-    const scoring_t &sc,
+    const scoring &sc,
     const string::const_iterator &ref,
     const size_t len,
     string::const_iterator &pqs_start,
     pqs_t &pqs_best,
     cache_entry_t &pqs_cache,
     int &pqs_cnt,
-    results_t &res)
+    results &res)
 {
   string::const_iterator s, e;
   int score;
@@ -398,7 +455,7 @@ void find_all_runs(
           if (flags.debug)
             Rcout << "Cache hit: " << s - ref  << " " << string(s, s+cache_hit->len) << " " << cache_hit->score << endl;
 
-          pqs_export(s - ref, cache_hit->len, cache_hit->score, res);
+          res.save(s - ref, cache_hit->len, cache_hit->score);
           res.density[s - ref] = cache_hit->cnt;
           continue;
         }
@@ -423,10 +480,10 @@ void find_all_runs(
 
       if (i == 0)
         // Enforce G4 total length limit to be relative to the first G-run start
-        find_all_runs(i+1, e, min(s + opts.max_len, end), m, run_re_c, opts, flags, sc,
+        find_all_runs(subject, i+1, e, min(s + opts.max_len, end), m, run_re_c, opts, flags, sc,
                    ref, len, s, pqs_best, pqs_cache, pqs_cnt, res);
       else if (i < 3)
-        find_all_runs(i+1, e, end, m, run_re_c, opts, flags, sc,
+        find_all_runs(subject, i+1, e, end, m, run_re_c, opts, flags, sc,
                    ref, len, pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
       else {
         /* Check user interrupt after reasonable amount of PQS identified to react
@@ -440,7 +497,7 @@ void find_all_runs(
 
         if (pqs_best.score && pqs_start >= pqs_best.e)
         {// Export PQS because no further overlapping pqs can be found
-          pqs_export(pqs_best.s - ref, pqs_best.e - pqs_best.s, pqs_best.score, res);
+          res.save(pqs_best.s - ref, pqs_best.e - pqs_best.s, pqs_best.score);
           pqs_best.score = 0;
         }
 
@@ -450,6 +507,8 @@ void find_all_runs(
           check_run_content(score, m, sc);
         if (score)
           check_loop_lengths(score, m, sc);
+        if (score && sc.user_fn != NULL)
+          check_user_fn(score, m, sc, subject, ref);
         // if (score)
         //   check_gc_skew(score, m, sc);
 
@@ -480,22 +539,6 @@ void find_all_runs(
 
 
 /**
- * Print results structure.
- *
- * @param res Results
- * @param ref Reference iterator to the beginning of the sequence.
- */
-void print_res(results_t &res, const string::const_iterator &ref)
-{
-  Rcout << "Results" << endl;
-  for (unsigned i = 0; i < res.start.size(); i++) {
-    Rcout << "PQS[" << i << "]: " << res.start[i] << " "
-          << string(ref + res.start[i], ref + res.start[i] + res.len[i]) << " " << res.score[i] << endl;
-  }
-}
-
-
-/**
  * Perform quadruplex search on given DNA sequence.
  *
  * @param seq DNA sequence
@@ -506,12 +549,13 @@ void print_res(results_t &res, const string::const_iterator &ref)
  * @param res Results
  */
 void pqs_search(
+    SEXP subject,
     const string &seq,
     const string &run_re,
-    const scoring_t &sc,
+    const scoring &sc,
     const opts_t &opts,
     const flags_t &flags,
-    results_t &res)
+    results &res)
 {
   boost::regex run_re_c(run_re);
   run_match m[RUN_CNT];
@@ -529,10 +573,10 @@ void pqs_search(
   int pqs_cnt = 0;
 
   // Global sequence length is the only limit for the first G-run
-  find_all_runs(0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc, seq.begin(), seq.length(), pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
+  find_all_runs(subject, 0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc, seq.begin(), seq.length(), pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
 
   if (pqs_best.score)
-    pqs_export(pqs_best.s - seq.begin(), pqs_best.e - pqs_best.s, pqs_best.score, res);
+    res.save(pqs_best.s - seq.begin(), pqs_best.e - pqs_best.s, pqs_best.score);
 
   // print_res(res, seq.begin());
 }
@@ -552,6 +596,13 @@ void pqs_search(
 //' @param loop_max_len Maxmimal length of quadruplex loop.
 //' @param g_bonus Score bonus for one complete G tetrade.
 //' @param bulge_penalty Penalization for a bulge in quadruplex run.
+//' @param user_fn Custom quadruplex scoring function. It takes the following 10
+//' arguments: \code{subject} - Input DNAString object, \code{score} - implicit PQS score,
+//' \code{start} - PQS start position, \code{width} - PQS width, \code{loop_1} - start pos. of loop #1,
+//' \code{run_2} - start pos. of run #2, \code{loop_2} - start pos. of loop #2,
+//' \code{run_3} - start pos. of run #3, \code{loop_3} - start pos. of loop #3,
+//' \code{run_4} - start pos. of run #4. Return value of the function should be new score
+//' represented as asingle integer value.
 //' @param use_cache Use cache for low complexity regions?
 //' @param use_re Use regular expression engine to validate quadruplex run?
 //' @param use_prof Enables profiling.
@@ -574,6 +625,7 @@ SEXP pqsfinder(
     int loop_max_len = 30,
     int g_bonus = 20,
     int bulge_penalty = 10,
+    SEXP user_fn = R_NilValue,
     bool use_cache = 1,
     bool use_re = 0,
     bool use_prof = 0,
@@ -594,6 +646,7 @@ SEXP pqsfinder(
   Rcout << "Use regexp engine: " << use_re << endl;
   Rcout << "Debug: " << debug << endl;
   Rcout << "Input sequence length: " << seq.length() << endl;
+  Rcout << "Use user fn: " << (user_fn != R_NilValue) << endl;
 
   if (run_re != "G{1,5}.{0,5}G{1,5}")
     // User specified its own regexp, force to use regexp engine
@@ -611,21 +664,27 @@ SEXP pqsfinder(
   opts.run_max_len = run_max_len;
   opts.run_min_len = run_min_len;
 
-  scoring_t sc;
+  scoring sc;
   sc.g_bonus = g_bonus;
   sc.bulge_penalty = bulge_penalty;
 
-  results_t res;
-  res.density = (int *)calloc(seq.length(), sizeof(int));
-  if (res.density == NULL)
-    stop("Unable to allocate enough memory for results.");
+  results res(seq.length());
+
+  if (user_fn != R_NilValue) {
+    sc.set_user_fn(user_fn);
+    if (flags.debug) {
+      Rcout << "User function: " << endl;
+      Function show("show");
+      show(user_fn);
+    }
+  }
 
   #ifdef _GLIBCXX_DEBUG
   if (use_prof)
     ProfilerStart("samples.log");
   #endif
 
-  pqs_search(seq, run_re, sc, opts, flags, res);
+  pqs_search(subject, seq, run_re, sc, opts, flags, res);
 
   #ifdef _GLIBCXX_DEBUG
   if (use_prof)
@@ -639,8 +698,6 @@ SEXP pqsfinder(
   NumericVector res_density(seq.length());
   for (unsigned i = 0; i < seq.length(); ++i)
     res_density[i] = res.density[i];
-
-  free(res.density);
 
   Function pqsviews("PQSViews");
   return pqsviews(subject, res_start, res_width, res_score, res_density);
