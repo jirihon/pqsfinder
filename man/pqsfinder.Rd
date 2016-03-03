@@ -4,15 +4,18 @@
 \alias{pqsfinder}
 \title{Identificate potential quadruplex forming sequences.}
 \usage{
-pqsfinder(subject, max_len = 70L, run_min_len = 3L, run_max_len = 11L,
-  loop_min_len = 0L, loop_max_len = 30L, g_bonus = 20L,
-  bulge_penalty = 10L, run_re = "G{1,5}.{0,5}G{1,5}", user_fn = NULL,
-  use_cache = 1L, use_re = 0L, use_prof = 0L, debug = 0L)
+pqsfinder(subject, max_len = 70L, min_score = 0L, run_min_len = 3L,
+  run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L,
+  g_bonus = 20L, bulge_penalty = 10L, run_re = "G{1,5}.{0,5}G{1,5}",
+  user_fn = NULL, use_cache = 1L, use_re = 0L, use_prof = 0L,
+  debug = 0L)
 }
 \arguments{
 \item{subject}{DNAString object.}
 
 \item{max_len}{Maximal lenth of PQS.}
+
+\item{min_score}{Minimal PQS score.}
 
 \item{run_min_len}{Minimal length of quadruplex run.}
 

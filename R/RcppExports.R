@@ -8,6 +8,7 @@
 #'
 #' @param subject DNAString object.
 #' @param max_len Maximal lenth of PQS.
+#' @param min_score Minimal PQS score.
 #' @param run_min_len Minimal length of quadruplex run.
 #' @param run_max_len Maximal length of quadruplex run.
 #' @param loop_min_len Minimal length of quadruplex loop.
@@ -33,7 +34,7 @@
 #' @examples
 #' pv <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
 #'
-pqsfinder <- function(subject, max_len = 70L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, g_bonus = 20L, bulge_penalty = 10L, run_re = "G{1,5}.{0,5}G{1,5}", user_fn = NULL, use_cache = 1L, use_re = 0L, use_prof = 0L, debug = 0L) {
-    .Call('pqsfinder_pqsfinder', PACKAGE = 'pqsfinder', subject, max_len, run_min_len, run_max_len, loop_min_len, loop_max_len, g_bonus, bulge_penalty, run_re, user_fn, use_cache, use_re, use_prof, debug)
+pqsfinder <- function(subject, max_len = 70L, min_score = 0L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, g_bonus = 20L, bulge_penalty = 10L, run_re = "G{1,5}.{0,5}G{1,5}", user_fn = NULL, use_cache = 1L, use_re = 0L, use_prof = 0L, debug = 0L) {
+    .Call('pqsfinder_pqsfinder', PACKAGE = 'pqsfinder', subject, max_len, min_score, run_min_len, run_max_len, loop_min_len, loop_max_len, g_bonus, bulge_penalty, run_re, user_fn, use_cache, use_re, use_prof, debug)
 }
 

@@ -83,7 +83,9 @@ public:
   vector<int> score;
   int *density;
 
-  results(int seq_len) {
+  int min_score;
+
+  results(const int seq_len, const int min_score) : min_score(min_score) {
     this->density = (int *)calloc(seq_len, sizeof(int));
     if (this->density == NULL)
       stop("Unable to allocate memory for results density vector.");
@@ -93,9 +95,11 @@ public:
       free(this->density);
   }
   inline void save(const int start, const int len, const int score) {
-    this->start.push_back(start + 1);
-    this->len.push_back(len);
-    this->score.push_back(score);
+    if (score >= this->min_score) {
+      this->start.push_back(start + 1);
+      this->len.push_back(len);
+      this->score.push_back(score);
+    }
   }
   inline void print(const string::const_iterator &ref) const {
     Rcout << "Results" << endl;
@@ -134,6 +138,7 @@ typedef struct flags {
 
 typedef struct opts {
   int max_len;
+  int min_score;
   int run_min_len;
   int run_max_len;
   int loop_min_len;
@@ -585,6 +590,7 @@ void pqs_search(
 //'
 //' @param subject DNAString object.
 //' @param max_len Maximal lenth of PQS.
+//' @param min_score Minimal PQS score.
 //' @param run_min_len Minimal length of quadruplex run.
 //' @param run_max_len Maximal length of quadruplex run.
 //' @param loop_min_len Minimal length of quadruplex loop.
@@ -614,6 +620,7 @@ void pqs_search(
 SEXP pqsfinder(
     SEXP subject,
     int max_len = 70,
+    int min_score = 0,
     int run_min_len = 3,
     int run_max_len = 11,
     int loop_min_len = 0,
@@ -647,9 +654,10 @@ SEXP pqsfinder(
   flags.debug = debug;
 
   opts_t opts;
+  opts.max_len = max_len;
+  opts.min_score = min_score;
   opts.loop_max_len = loop_max_len;
   opts.loop_min_len = loop_min_len;
-  opts.max_len = max_len;
   opts.run_max_len = run_max_len;
   opts.run_min_len = run_min_len;
 
@@ -657,7 +665,7 @@ SEXP pqsfinder(
   sc.g_bonus = g_bonus;
   sc.bulge_penalty = bulge_penalty;
 
-  results res(seq.length());
+  results res(seq.length(), opts.min_score);
 
   if (flags.debug) {
     Rcout << "G-run regexp: " << run_re << endl;
