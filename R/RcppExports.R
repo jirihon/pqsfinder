@@ -7,7 +7,6 @@
 #' patterns (PQS) in DNA sequence.
 #'
 #' @param subject DNAString object.
-#' @param run_re Regular expression specifying one run of quadruplex.
 #' @param max_len Maximal lenth of PQS.
 #' @param run_min_len Minimal length of quadruplex run.
 #' @param run_max_len Maximal length of quadruplex run.
@@ -15,6 +14,7 @@
 #' @param loop_max_len Maxmimal length of quadruplex loop.
 #' @param g_bonus Score bonus for one complete G tetrade.
 #' @param bulge_penalty Penalization for a bulge in quadruplex run.
+#' @param run_re Regular expression specifying one run of quadruplex.
 #' @param user_fn Custom quadruplex scoring function. It takes the following 10
 #' arguments: \code{subject} - Input DNAString object, \code{score} - implicit PQS score,
 #' \code{start} - PQS start position, \code{width} - PQS width, \code{loop_1} - start pos. of loop #1,
@@ -33,7 +33,7 @@
 #' @examples
 #' pv <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
 #'
-pqsfinder <- function(subject, run_re = "G{1,5}.{0,5}G{1,5}", max_len = 70L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, g_bonus = 20L, bulge_penalty = 10L, user_fn = NULL, use_cache = 1L, use_re = 0L, use_prof = 0L, debug = 0L) {
-    .Call('pqsfinder_pqsfinder', PACKAGE = 'pqsfinder', subject, run_re, max_len, run_min_len, run_max_len, loop_min_len, loop_max_len, g_bonus, bulge_penalty, user_fn, use_cache, use_re, use_prof, debug)
+pqsfinder <- function(subject, max_len = 70L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, g_bonus = 20L, bulge_penalty = 10L, run_re = "G{1,5}.{0,5}G{1,5}", user_fn = NULL, use_cache = 1L, use_re = 0L, use_prof = 0L, debug = 0L) {
+    .Call('pqsfinder_pqsfinder', PACKAGE = 'pqsfinder', subject, max_len, run_min_len, run_max_len, loop_min_len, loop_max_len, g_bonus, bulge_penalty, run_re, user_fn, use_cache, use_re, use_prof, debug)
 }
 

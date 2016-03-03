@@ -31,21 +31,62 @@ using namespace std;
 
 
 // Implementation constants
-const int CACHE_SIZE = 1024*1024;
 const int RUN_CNT = 4;
 const int CHECK_INT_PERIOD = 2e7;
-const int USE_CACHE_TRESHOLD = 1000;
 
-typedef struct cache_entry {
-  string seq;
-  int score;
-  int len;
-  int cnt;
-} cache_entry_t;
 
 /* Cache table for low complexity regions. It is usefull just for dealing with almost
  * G-complete sequence regions, which does not usually occur in human genome. */
-cache_entry_t cache_table[CACHE_SIZE];
+class cache {
+public:
+  class entry {
+  public:
+    string seq;
+    int score;
+    int len;
+    int cnt;
+    vector<int> density;
+
+    entry(int max_len) : density(max_len) {
+      this->score = 0;
+      this->len = 0;
+      this->cnt = 0;
+    }
+  };
+  static const int size = 1024*1024;
+  static const int use_treshold = 1000;
+  vector<entry> table;
+
+  cache(int max_len) : table(size, entry(max_len)) {}
+
+  inline unsigned hash(string::const_iterator s, const string::const_iterator &e)
+  {
+    unsigned hash = 0;
+    while (s < e) {
+      hash = 31 * hash + *s;
+      ++s;
+    }
+    return hash % this->size;
+  }
+  inline entry *get(const string::const_iterator &s, const string::const_iterator &e)
+  {
+    unsigned hash = this->hash(s, e);
+    if (this->table[hash].len > 0 || this->table[hash].seq == string(s, e))
+      return &this->table[hash];
+    else
+      return NULL;
+  }
+  inline void put(const string::const_iterator &s, const string::const_iterator &e, const entry &entry)
+  {
+    unsigned hash = this->hash(s, e);
+    if (entry.cnt > this->table[hash].cnt) {
+      // replace cached entry
+      this->table[hash] = entry;
+      this->table[hash].seq = string(s, e);
+    }
+  }
+};
+
 
 class results {
 public:
@@ -63,12 +104,12 @@ public:
     if (this->density != NULL)
       free(this->density);
   }
-  void save(const int start, const int len, const int score) {
+  inline void save(const int start, const int len, const int score) {
     this->start.push_back(start + 1);
     this->len.push_back(len);
     this->score.push_back(score);
   }
-  void print(const string::const_iterator &ref) const {
+  inline void print(const string::const_iterator &ref) const {
     Rcout << "Results" << endl;
     for (unsigned i = 0; i < this->start.size(); i++) {
       Rcout << "PQS[" << i << "]: " << this->start[i] << " "
@@ -127,59 +168,6 @@ public:
     return second - first;
   };
 };
-
-
-/**
- * Hash function for PQS cache.
- *
- * @param s Begin string iterator
- * @param e End string iterator
- * @return Hash value
- */
-inline unsigned cache_hash(string::const_iterator s, const string::const_iterator &e)
-{
-  unsigned hash = 0;
-  while (s < e) {
-    hash = 31 * hash + *s;
-    ++s;
-  }
-  return hash % CACHE_SIZE;
-}
-
-/**
- * Get entry from cache table if present.
- *
- * @param s Begin string iterator
- * @param e End string iterator
- * @return Pointer to cache entry on success, NULL otherwise.
- */
-inline cache_entry_t *cache_get(const string::const_iterator &s, const string::const_iterator &e)
-{
-  unsigned hash = cache_hash(s, e);
-  if (cache_table[hash].len == 0 || (cache_table[hash].seq != string(s, e)))
-    return NULL;
-  else
-    return &cache_table[hash];
-}
-
-/**
- * Save entry in cache table
- *
- * @param s Begin string iterator
- * @param e End string iterator
- * @param entry Cache entry
- */
-inline void cache_put(const string::const_iterator &s, const string::const_iterator &e, const cache_entry_t &entry)
-{
-  unsigned hash = cache_hash(s, e);
-  if (entry.cnt > cache_table[hash].cnt) {
-    // replace cached entry
-    cache_table[hash] = entry;
-    cache_table[hash].seq = string(s, e);
-  }
-}
-
-
 
 
 /**
@@ -433,13 +421,14 @@ void find_all_runs(
     const size_t len,
     string::const_iterator &pqs_start,
     pqs_t &pqs_best,
-    cache_entry_t &pqs_cache,
+    cache &ctable,
+    cache::entry &pqs_cache,
     int &pqs_cnt,
     results &res)
 {
   string::const_iterator s, e;
   int score;
-  cache_entry_t *cache_hit;
+  cache::entry *cache_hit;
 
   if (i > 0 && start - m[i-1].second < opts.loop_min_len)
     start = min(m[i-1].second + opts.loop_min_len, end); // skip too short loop
@@ -448,18 +437,27 @@ void find_all_runs(
   {
     if (i == 0)
     {// Specific code for the first run matching
-      if (flags.use_cache && res.density[max((int)(s - ref - 1), 0)] > USE_CACHE_TRESHOLD)
+      if (flags.use_cache && res.density[max((int)(s - ref - 1), 0)] > cache::use_treshold)
       {
-        cache_hit = cache_get(s, min(s + opts.max_len, end));
+        cache_hit = ctable.get(s, min(s + opts.max_len, end));
+
         if (cache_hit != NULL) {
           if (flags.debug)
             Rcout << "Cache hit: " << s - ref  << " " << string(s, s+cache_hit->len) << " " << cache_hit->score << endl;
 
-          res.save(s - ref, cache_hit->len, cache_hit->score);
+          if (pqs_best.score && s >= pqs_best.e)
+          {// Export PQS because no further overlapping pqs can be found
+            res.save(pqs_best.s - ref, pqs_best.e - pqs_best.s, pqs_best.score);
+            pqs_best.score = 0;
+          }
+          if (cache_hit->score > pqs_cache.score) {
+            pqs_cache = *cache_hit;
+          }
           res.density[s - ref] = cache_hit->cnt;
           continue;
         }
       }
+      // Reset score of best PQS starting at current position
       pqs_cache.score = 0;
     }
     for (e = end; s < e && find_run(s, e, m[i], run_re_c, opts, flags); e--)
@@ -481,10 +479,10 @@ void find_all_runs(
       if (i == 0)
         // Enforce G4 total length limit to be relative to the first G-run start
         find_all_runs(subject, i+1, e, min(s + opts.max_len, end), m, run_re_c, opts, flags, sc,
-                   ref, len, s, pqs_best, pqs_cache, pqs_cnt, res);
+                   ref, len, s, pqs_best, ctable, pqs_cache, pqs_cnt, res);
       else if (i < 3)
         find_all_runs(subject, i+1, e, end, m, run_re_c, opts, flags, sc,
-                   ref, len, pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
+                   ref, len, pqs_start, pqs_best, ctable, pqs_cache, pqs_cnt, res);
       else {
         /* Check user interrupt after reasonable amount of PQS identified to react
          * on important user signals. I.e. he might want to abort the computation. */
@@ -526,13 +524,13 @@ void find_all_runs(
             pqs_best.s = pqs_start;
             pqs_best.e = e;
           }
-          if (flags.debug)
-            print_pqs(m, score, ref, res.density[pqs_start - ref]);
+          // if (flags.debug)
+          //   print_pqs(m, score, ref, res.density[pqs_start - ref]);
         }
       }
     }
-    if (i == 0 && flags.use_cache && res.density[s - ref] > USE_CACHE_TRESHOLD) {
-      cache_put(s, min(s + opts.max_len, end), pqs_cache);
+    if (i == 0 && flags.use_cache && res.density[s - ref] > cache::use_treshold) {
+      ctable.put(s, min(s + opts.max_len, end), pqs_cache);
     }
   }
 }
@@ -560,11 +558,8 @@ void pqs_search(
   boost::regex run_re_c(run_re);
   run_match m[RUN_CNT];
 
-  cache_entry_t pqs_cache;
-  pqs_cache.len = 0;
-  // Clear cache table
-  for (int i = 0; i < CACHE_SIZE; ++i)
-    cache_table[i] = pqs_cache;
+  cache ctable(opts.max_len);
+  cache::entry pqs_cache(opts.max_len);
 
   pqs_t pqs_best;
   pqs_best.score = 0;
@@ -573,7 +568,8 @@ void pqs_search(
   int pqs_cnt = 0;
 
   // Global sequence length is the only limit for the first G-run
-  find_all_runs(subject, 0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc, seq.begin(), seq.length(), pqs_start, pqs_best, pqs_cache, pqs_cnt, res);
+  find_all_runs(subject, 0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc,
+                seq.begin(), seq.length(), pqs_start, pqs_best, ctable, pqs_cache, pqs_cnt, res);
 
   if (pqs_best.score)
     res.save(pqs_best.s - seq.begin(), pqs_best.e - pqs_best.s, pqs_best.score);
@@ -588,7 +584,6 @@ void pqs_search(
 //' patterns (PQS) in DNA sequence.
 //'
 //' @param subject DNAString object.
-//' @param run_re Regular expression specifying one run of quadruplex.
 //' @param max_len Maximal lenth of PQS.
 //' @param run_min_len Minimal length of quadruplex run.
 //' @param run_max_len Maximal length of quadruplex run.
@@ -596,6 +591,7 @@ void pqs_search(
 //' @param loop_max_len Maxmimal length of quadruplex loop.
 //' @param g_bonus Score bonus for one complete G tetrade.
 //' @param bulge_penalty Penalization for a bulge in quadruplex run.
+//' @param run_re Regular expression specifying one run of quadruplex.
 //' @param user_fn Custom quadruplex scoring function. It takes the following 10
 //' arguments: \code{subject} - Input DNAString object, \code{score} - implicit PQS score,
 //' \code{start} - PQS start position, \code{width} - PQS width, \code{loop_1} - start pos. of loop #1,
@@ -617,7 +613,6 @@ void pqs_search(
 // [[Rcpp::export]]
 SEXP pqsfinder(
     SEXP subject,
-    std::string run_re = "G{1,5}.{0,5}G{1,5}",
     int max_len = 70,
     int run_min_len = 3,
     int run_max_len = 11,
@@ -625,6 +620,7 @@ SEXP pqsfinder(
     int loop_max_len = 30,
     int g_bonus = 20,
     int bulge_penalty = 10,
+    std::string run_re = "G{1,5}.{0,5}G{1,5}",
     SEXP user_fn = R_NilValue,
     bool use_cache = 1,
     bool use_re = 0,
