@@ -35,55 +35,43 @@ const int RUN_CNT = 4;
 const int CHECK_INT_PERIOD = 2e7;
 
 
-/* Cache table for low complexity regions. It is usefull just for dealing with almost
- * G-complete sequence regions, which does not usually occur in human genome. */
+/**
+ * Cache for low complexity regions. It is usefull just for dealing with almost
+ * G-complete sequence regions, which does not usually occur in human genome.
+ */
 class cache {
 public:
   class entry {
   public:
-    string seq;
+    vector<int> density;
     int score;
     int len;
-    int cnt;
-    vector<int> density;
-
-    entry(int max_len) : density(max_len) {
-      this->score = 0;
-      this->len = 0;
-      this->cnt = 0;
-    }
+    entry(int max_len) : density(max_len), score(0), len(0) {}
   };
-  static const int size = 1024*1024;
+  typedef std::map<string, cache::entry>::iterator iterator;
+  typedef std::map<string, cache::entry>::value_type value_type;
   static const int use_treshold = 1000;
-  vector<entry> table;
 
-  cache(int max_len) : table(size, entry(max_len)) {}
+  std::map<string, cache::entry> table;
+  int max_len;
 
-  inline unsigned hash(string::const_iterator s, const string::const_iterator &e)
-  {
-    unsigned hash = 0;
-    while (s < e) {
-      hash = 31 * hash + *s;
-      ++s;
-    }
-    return hash % this->size;
-  }
-  inline entry *get(const string::const_iterator &s, const string::const_iterator &e)
-  {
-    unsigned hash = this->hash(s, e);
-    if (this->table[hash].len > 0 || this->table[hash].seq == string(s, e))
-      return &this->table[hash];
-    else
+  cache(const int max_len) : max_len(max_len) {}
+
+  inline entry *get(const std::string::const_iterator s, const std::string::const_iterator &e) {
+    cache::iterator it = this->table.find(string(s, e));
+    if (it == this->table.end())
       return NULL;
+    else
+      return &((*it).second);
   }
-  inline void put(const string::const_iterator &s, const string::const_iterator &e, const entry &entry)
-  {
-    unsigned hash = this->hash(s, e);
-    if (entry.cnt > this->table[hash].cnt) {
-      // replace cached entry
-      this->table[hash] = entry;
-      this->table[hash].seq = string(s, e);
-    }
+  inline void put(const std::string::const_iterator &s, const std::string::const_iterator &e,
+                  const cache::entry &entry) {
+    std::string seq = string(s, e);
+    cache::iterator it = this->table.find(seq);
+    if (it == this->table.end())
+      this->table.insert(cache::value_type(seq, entry));
+    else if (entry.density[0] > (*it).second.density[0])
+      (*it).second = entry;
   }
 };
 
@@ -437,28 +425,37 @@ void find_all_runs(
   {
     if (i == 0)
     {// Specific code for the first run matching
-      if (flags.use_cache && res.density[max((int)(s - ref - 1), 0)] > cache::use_treshold)
+      if (flags.use_cache && /*res.density[max((int)(s - ref - 1), 0)]*/ pqs_cache.density[0] > cache::use_treshold)
       {
+        Rcout << "Cache get " << string(s, min(s + opts.max_len, end)) << endl;
         cache_hit = ctable.get(s, min(s + opts.max_len, end));
 
         if (cache_hit != NULL) {
           if (flags.debug)
             Rcout << "Cache hit: " << s - ref  << " " << string(s, s+cache_hit->len) << " " << cache_hit->score << endl;
 
+          //res.density[s - ref] = cache_hit->cnt;
+          for (int i = 0; i < opts.max_len; ++i) {
+            res.density[s - ref + i] += cache_hit->density[i];
+          }
+
           if (pqs_best.score && s >= pqs_best.e)
           {// Export PQS because no further overlapping pqs can be found
             res.save(pqs_best.s - ref, pqs_best.e - pqs_best.s, pqs_best.score);
             pqs_best.score = 0;
           }
-          if (cache_hit->score > pqs_cache.score) {
-            pqs_cache = *cache_hit;
+          if (cache_hit->score > pqs_best.score) {
+            pqs_best.score = cache_hit->score;
+            pqs_best.s = s;
+            pqs_best.e = s + cache_hit->len;
           }
-          res.density[s - ref] = cache_hit->cnt;
           continue;
         }
       }
-      // Reset score of best PQS starting at current position
+      // Reset score of best PQS starting at current position and density info
       pqs_cache.score = 0;
+      for (int k = 0; k < opts.max_len; ++k)
+        pqs_cache.density[k] = 0;
     }
     for (e = end; s < e && find_run(s, e, m[i], run_re_c, opts, flags); e--)
     {
@@ -511,26 +508,35 @@ void find_all_runs(
         //   check_gc_skew(score, m, sc);
 
         if (score) {
-          ++res.density[pqs_start - ref];
+          //++res.density[pqs_start - ref];
+
+          for (int k = 0; k < e - pqs_start; ++k)
+            ++pqs_cache.density[k];
 
           if (score > pqs_cache.score) {
             pqs_cache.score = score;
-            pqs_cache.cnt = res.density[pqs_start - ref];
+            //pqs_cache.cnt = res.density[pqs_start - ref];
             pqs_cache.len = e - pqs_start;
           }
-
           if (score > pqs_best.score) {
             pqs_best.score = score;
             pqs_best.s = pqs_start;
             pqs_best.e = e;
           }
           // if (flags.debug)
-          //   print_pqs(m, score, ref, res.density[pqs_start - ref]);
+          //   print_pqs(m, score, ref, pqs_cache.density[0]/*res.density[pqs_start - ref]*/);
         }
       }
     }
-    if (i == 0 && flags.use_cache && res.density[s - ref] > cache::use_treshold) {
-      ctable.put(s, min(s + opts.max_len, end), pqs_cache);
+    if (i == 0) {
+      if (flags.use_cache && /*res.density[s - ref]*/pqs_cache.density[0] > cache::use_treshold) {
+        Rcout << "Cache put " << string(s, min(s + opts.max_len, end)) << endl;
+        ctable.put(s, min(s + opts.max_len, end), pqs_cache);
+      }
+
+      // Add local density to global results array
+      for (int k = 0; k < opts.max_len; ++k)
+        res.density[s - ref + k] += pqs_cache.density[k];
     }
   }
 }
