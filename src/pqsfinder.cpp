@@ -57,8 +57,8 @@ public:
 
   cache(const int max_len) : max_len(max_len) {}
 
-  inline entry *get(const std::string::const_iterator s, const std::string::const_iterator &e) {
-    cache::iterator it = this->table.find(string(s, e));
+  inline entry *get(const std::string::const_iterator &s, const std::string::const_iterator &e) {
+    cache::iterator it = this->table.find(std::string(s, e));
     if (it == this->table.end())
       return NULL;
     else
@@ -66,7 +66,7 @@ public:
   }
   inline void put(const std::string::const_iterator &s, const std::string::const_iterator &e,
                   const cache::entry &entry) {
-    std::string seq = string(s, e);
+    std::string seq = std::string(s, e);
     cache::iterator it = this->table.find(seq);
     if (it == this->table.end())
       this->table.insert(cache::value_type(seq, entry));
@@ -270,9 +270,8 @@ inline void check_run_content(int &score, const run_match m[], const scoring &sc
  *
  * @param score Quadruplex score
  * @param m Quadruples runs
- * @param sc Scoring table
  */
-inline void check_loop_lengths(int &score, const run_match m[], const scoring &sc)
+inline void check_loop_lengths(int &score, const run_match m[])
 {
   int l1, l2, l3;
   l1 = m[1].first - m[0].second;
@@ -329,7 +328,7 @@ inline void check_user_fn(int &score, const run_match m[], const scoring &sc, SE
  * @param m Quadruples runs
  * @param sc Scoring table
  */
-inline void check_gc_skew(int &score, run_match m[], const scoring &sc)
+inline void check_gc_skew(int &score, run_match m[])
 {
   int gc_skew = 0;
 
@@ -425,18 +424,18 @@ void find_all_runs(
   {
     if (i == 0)
     {// Specific code for the first run matching
-      if (flags.use_cache && /*res.density[max((int)(s - ref - 1), 0)]*/ pqs_cache.density[0] > cache::use_treshold)
+      if (flags.use_cache && pqs_cache.density[0] > cache::use_treshold)
       {
         Rcout << "Cache get " << string(s, min(s + opts.max_len, end)) << endl;
         cache_hit = ctable.get(s, min(s + opts.max_len, end));
 
         if (cache_hit != NULL) {
           if (flags.debug)
-            Rcout << "Cache hit: " << s - ref  << " " << string(s, s+cache_hit->len) << " " << cache_hit->score << endl;
+            Rcout << "Cache hit: " << s - ref  << " " << string(s, s+cache_hit->len)
+                  << " " << cache_hit->score << endl;
 
-          //res.density[s - ref] = cache_hit->cnt;
-          for (int i = 0; i < opts.max_len; ++i) {
-            res.density[s - ref + i] += cache_hit->density[i];
+          for (int k = 0; k < opts.max_len; ++k) {
+            res.density[s - ref + k] += cache_hit->density[k];
           }
 
           if (pqs_best.score && s >= pqs_best.e)
@@ -501,40 +500,37 @@ void find_all_runs(
         if (score)
           check_run_content(score, m, sc);
         if (score)
-          check_loop_lengths(score, m, sc);
+          check_loop_lengths(score, m);
         if (score && sc.user_fn != NULL)
           check_user_fn(score, m, sc, subject, ref);
-        // if (score)
-        //   check_gc_skew(score, m, sc);
 
         if (score) {
-          //++res.density[pqs_start - ref];
+          // Current PQS satisfied all constraints.
 
           for (int k = 0; k < e - pqs_start; ++k)
             ++pqs_cache.density[k];
 
           if (score > pqs_cache.score) {
+            // Update properties of caching candidate
             pqs_cache.score = score;
-            //pqs_cache.cnt = res.density[pqs_start - ref];
             pqs_cache.len = e - pqs_start;
           }
           if (score > pqs_best.score) {
+            // Update properties of best PQS to be exported
             pqs_best.score = score;
             pqs_best.s = pqs_start;
             pqs_best.e = e;
           }
-          // if (flags.debug)
-          //   print_pqs(m, score, ref, pqs_cache.density[0]/*res.density[pqs_start - ref]*/);
+          if (flags.debug)
+            print_pqs(m, score, ref, pqs_cache.density[0]);
         }
       }
     }
     if (i == 0) {
-      if (flags.use_cache && /*res.density[s - ref]*/pqs_cache.density[0] > cache::use_treshold) {
-        Rcout << "Cache put " << string(s, min(s + opts.max_len, end)) << endl;
+      if (flags.use_cache && pqs_cache.density[0] > cache::use_treshold)
         ctable.put(s, min(s + opts.max_len, end), pqs_cache);
-      }
 
-      // Add local density to global results array
+      // Add locally accumulated density to global density array
       for (int k = 0; k < opts.max_len; ++k)
         res.density[s - ref + k] += pqs_cache.density[k];
     }
@@ -579,8 +575,6 @@ void pqs_search(
 
   if (pqs_best.score)
     res.save(pqs_best.s - seq.begin(), pqs_best.e - pqs_best.s, pqs_best.score);
-
-  // print_res(res, seq.begin());
 }
 
 
@@ -643,13 +637,6 @@ SEXP pqsfinder(
 
   string seq = as<string>(as_character(subject));
 
-  Rcout << "G-run regexp: " << run_re << endl;
-  Rcout << "Use cache: " << use_cache << endl;
-  Rcout << "Use regexp engine: " << use_re << endl;
-  Rcout << "Debug: " << debug << endl;
-  Rcout << "Input sequence length: " << seq.length() << endl;
-  Rcout << "Use user fn: " << (user_fn != R_NilValue) << endl;
-
   if (run_re != "G{1,5}.{0,5}G{1,5}")
     // User specified its own regexp, force to use regexp engine
     use_re = true;
@@ -671,6 +658,14 @@ SEXP pqsfinder(
   sc.bulge_penalty = bulge_penalty;
 
   results res(seq.length());
+
+  if (flags.debug) {
+    Rcout << "G-run regexp: " << run_re << endl;
+    Rcout << "Use cache: " << flags.use_cache << endl;
+    Rcout << "Use regexp engine: " << flags.use_re << endl;
+    Rcout << "Input sequence length: " << seq.length() << endl;
+    Rcout << "Use user fn: " << (user_fn != R_NilValue) << endl;
+  }
 
   if (user_fn != R_NilValue) {
     sc.set_user_fn(user_fn);

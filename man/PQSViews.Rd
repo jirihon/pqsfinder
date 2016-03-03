@@ -15,7 +15,7 @@ PQSViews(subject, start, width, score, density)
 
 \item{score}{Vector of PQS scores.}
 
-\item{density}{Numbers of PQS starting at each position in \code{subject}.}
+\item{density}{Numbers of PQS overlapping at each position in \code{subject}.}
 }
 \value{
 PQSViews object

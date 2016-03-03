@@ -4,16 +4,13 @@
 \alias{pqsfinder}
 \title{Identificate potential quadruplex forming sequences.}
 \usage{
-pqsfinder(subject, run_re = "G{1,5}.{0,5}G{1,5}", max_len = 70L,
-  run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L,
-  loop_max_len = 30L, g_bonus = 20L, bulge_penalty = 10L,
-  user_fn = NULL, use_cache = 1L, use_re = 0L, use_prof = 0L,
-  debug = 0L)
+pqsfinder(subject, max_len = 70L, run_min_len = 3L, run_max_len = 11L,
+  loop_min_len = 0L, loop_max_len = 30L, g_bonus = 20L,
+  bulge_penalty = 10L, run_re = "G{1,5}.{0,5}G{1,5}", user_fn = NULL,
+  use_cache = 1L, use_re = 0L, use_prof = 0L, debug = 0L)
 }
 \arguments{
 \item{subject}{DNAString object.}
-
-\item{run_re}{Regular expression specifying one run of quadruplex.}
 
 \item{max_len}{Maximal lenth of PQS.}
 
@@ -28,6 +25,8 @@ pqsfinder(subject, run_re = "G{1,5}.{0,5}G{1,5}", max_len = 70L,
 \item{g_bonus}{Score bonus for one complete G tetrade.}
 
 \item{bulge_penalty}{Penalization for a bulge in quadruplex run.}
+
+\item{run_re}{Regular expression specifying one run of quadruplex.}
 
 \item{user_fn}{Custom quadruplex scoring function. It takes the following 10
 arguments: \code{subject} - Input DNAString object, \code{score} - implicit PQS score,

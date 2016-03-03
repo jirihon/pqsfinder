@@ -14,7 +14,7 @@
 #' one more slot.
 #'
 #' @slot density Numbers of PQS (potential quadruplex forming sequences)
-#'               starting at each position in input sequence.
+#'               overlapping at each position in input sequence.
 #'
 .PQSViews <- setClass(
   "PQSViews",
@@ -42,7 +42,7 @@
 #' @param start Vector of PQS start positions.
 #' @param width Vector of PQS lengths.
 #' @param score Vector of PQS scores.
-#' @param density Numbers of PQS starting at each position in \code{subject}.
+#' @param density Numbers of PQS overlapping at each position in \code{subject}.
 #' @return PQSViews object
 #'
 #' @examples
@@ -70,7 +70,7 @@ setMethod("score", "PQSViews", function(x) mcols(x)$score)
 #' Get density vector
 #'
 #' Desity vector represents numbers of PQS (potential quadruplex forming sequences)
-#' starting at each position in input sequence.
+#' overlapping at each position in input sequence.
 #'
 #' @param x PQSViews object
 #' @return Density vector
