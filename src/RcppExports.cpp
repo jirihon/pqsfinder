@@ -6,8 +6,8 @@
 using namespace Rcpp;
 
 // pqsfinder
-SEXP pqsfinder(SEXP subject, int max_len, int min_score, int run_min_len, int run_max_len, int loop_min_len, int loop_max_len, int g_bonus, int bulge_penalty, std::string run_re, SEXP user_fn, bool use_cache, bool use_re, bool use_prof, bool debug);
-RcppExport SEXP pqsfinder_pqsfinder(SEXP subjectSEXP, SEXP max_lenSEXP, SEXP min_scoreSEXP, SEXP run_min_lenSEXP, SEXP run_max_lenSEXP, SEXP loop_min_lenSEXP, SEXP loop_max_lenSEXP, SEXP g_bonusSEXP, SEXP bulge_penaltySEXP, SEXP run_reSEXP, SEXP user_fnSEXP, SEXP use_cacheSEXP, SEXP use_reSEXP, SEXP use_profSEXP, SEXP debugSEXP) {
+SEXP pqsfinder(SEXP subject, int max_len, int min_score, int run_min_len, int run_max_len, int loop_min_len, int loop_max_len, int g_bonus, int bulge_penalty, int mismatch_penalty, std::string run_re, SEXP user_fn, bool use_cache, bool use_re, bool use_prof, bool debug);
+RcppExport SEXP pqsfinder_pqsfinder(SEXP subjectSEXP, SEXP max_lenSEXP, SEXP min_scoreSEXP, SEXP run_min_lenSEXP, SEXP run_max_lenSEXP, SEXP loop_min_lenSEXP, SEXP loop_max_lenSEXP, SEXP g_bonusSEXP, SEXP bulge_penaltySEXP, SEXP mismatch_penaltySEXP, SEXP run_reSEXP, SEXP user_fnSEXP, SEXP use_cacheSEXP, SEXP use_reSEXP, SEXP use_profSEXP, SEXP debugSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
@@ -20,13 +20,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type loop_max_len(loop_max_lenSEXP);
     Rcpp::traits::input_parameter< int >::type g_bonus(g_bonusSEXP);
     Rcpp::traits::input_parameter< int >::type bulge_penalty(bulge_penaltySEXP);
+    Rcpp::traits::input_parameter< int >::type mismatch_penalty(mismatch_penaltySEXP);
     Rcpp::traits::input_parameter< std::string >::type run_re(run_reSEXP);
     Rcpp::traits::input_parameter< SEXP >::type user_fn(user_fnSEXP);
     Rcpp::traits::input_parameter< bool >::type use_cache(use_cacheSEXP);
     Rcpp::traits::input_parameter< bool >::type use_re(use_reSEXP);
     Rcpp::traits::input_parameter< bool >::type use_prof(use_profSEXP);
     Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
-    __result = Rcpp::wrap(pqsfinder(subject, max_len, min_score, run_min_len, run_max_len, loop_min_len, loop_max_len, g_bonus, bulge_penalty, run_re, user_fn, use_cache, use_re, use_prof, debug));
+    __result = Rcpp::wrap(pqsfinder(subject, max_len, min_score, run_min_len, run_max_len, loop_min_len, loop_max_len, g_bonus, bulge_penalty, mismatch_penalty, run_re, user_fn, use_cache, use_re, use_prof, debug));
     return __result;
 END_RCPP
 }

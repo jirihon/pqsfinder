@@ -116,6 +116,7 @@ class scoring {
 public:
   int g_bonus;
   int bulge_penalty;
+  int mismatch_penalty;
   Function *user_fn;
 
   scoring() {
@@ -262,6 +263,9 @@ inline void check_run_content(int &score, const run_match m[], const scoring &sc
   g3 = count_g_num(m[2]);
   g4 = count_g_num(m[3]);
 
+  // Rcout << w1 << " " << w2 << " " << w3 << " " << w4 << endl;
+  // Rcout << g1 << " " << g2 << " " << g3 << " " << g4 << endl;
+
   /*
    * Allowed combinations:
    * g g g g
@@ -274,15 +278,35 @@ inline void check_run_content(int &score, const run_match m[], const scoring &sc
    *         R repesents one longer run
    */
   if (g1 == w1 && g2 == w2 && w3 == g3 && w4 == g4 && w1 == w2 && w2 == w3 && w3 == w4)
-    score += g1 * sc.g_bonus; // canonical g-quadruplex
+  {// canonical g-quadruplex
+    score += g1 * sc.g_bonus;
+  }
   else if ((g2 == w2 && g1 >= g2 && g2 == g3 && g2 == g4))
+  {// bulge in the first run
     score += g2 * sc.g_bonus - sc.bulge_penalty;
+  }
   else if ((g1 == w1 && g1 <= g2 && g1 == g3 && g1 == g4) ||
            (g1 == w1 && g1 == g2 && g1 <= g3 && g1 == g4) ||
-           (g1 == w1 && g1 == g2 && g1 == g3 && g1 <= g4))
+          (g1 == w1 && g1 == g2 && g1 == g3 && g1 <= g4))
+  {// bulge in the second, third or fourth run
     score += g1 * sc.g_bonus - sc.bulge_penalty;
-  else
+  }
+  else if (w1 == w2 && w1 == w3 && w1 == w4)
+  {// bulges with same width, check for single mismatch
+    if ((g2 == w2 && g1 == g2-1 && g2 == g3   && g2 == g4))
+    {// mismatch in first run
+      score += g2 * sc.g_bonus - sc.mismatch_penalty;
+    }
+    else if ((g1 == w1 && g1-1 == g2 && g1 == g3   && g1 == g4) ||
+             (g1 == w1 && g1 == g2   && g1-1 == g3 && g1 == g4) ||
+             (g1 == w1 && g1 == g2   && g1 == g3   && g1-1 == g4))
+    {// mismatch in second, third or fourth run
+      score += g1 * sc.g_bonus - sc.mismatch_penalty;
+    }
+  }
+  else {// runs with invalid content
     score = 0;
+  }
 }
 
 
@@ -613,6 +637,7 @@ void pqs_search(
 //' @param loop_max_len Maxmimal length of quadruplex loop.
 //' @param g_bonus Score bonus for one complete G tetrade.
 //' @param bulge_penalty Penalization for a bulge in quadruplex run.
+//' @param mismatch_penalty Penalization for a mismatch in tetrad.
 //' @param run_re Regular expression specifying one run of quadruplex.
 //' @param user_fn Custom quadruplex scoring function. It takes the following 10
 //' arguments: \code{subject} - Input DNAString object, \code{score} - implicit PQS score,
@@ -643,6 +668,7 @@ SEXP pqsfinder(
     int loop_max_len = 30,
     int g_bonus = 20,
     int bulge_penalty = 10,
+    int mismatch_penalty = 10,
     std::string run_re = "G{1,5}.{0,5}G{1,5}",
     SEXP user_fn = R_NilValue,
     bool use_cache = 1,
@@ -680,6 +706,7 @@ SEXP pqsfinder(
   scoring sc;
   sc.g_bonus = g_bonus;
   sc.bulge_penalty = bulge_penalty;
+  sc.mismatch_penalty = mismatch_penalty;
 
   results res(seq.length(), opts.min_score);
 
