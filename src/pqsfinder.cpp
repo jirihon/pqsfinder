@@ -211,21 +211,37 @@ inline void check_run_lengths(int &score, const run_match m[])
 }
 
 /**
- * Count number of G's in G-run
- *
- * NOTE: This simple counting implementation allows multiple bulges
- * in one g-run.
+ * Count number of G's in G-run.
+ * This way of counting leads to only one bulge allowed in G-run.
  *
  * @param m G-run match
  * @return Number of guanines in G-run
  */
 inline int count_g_num(const run_match &m) {
+  string::const_iterator s = m.first, e = m.second;
   int cnt = 0;
-  for (string::const_iterator s = m.first; s != m.second; s++) {
-    if (*s == 'G') cnt++;
-  }
+  while (*s == 'G' && s < e) { ++s; ++cnt; }
+  --e; // <e> points to past-the-end character and as such should not be dereferenced
+  while (*e == 'G' && e > s) { --e; ++cnt; }
   return cnt;
 }
+
+
+/**
+ * R interface to test count_g_num function
+ *
+ * @param seq G-run sequence
+ * @return Number of canonical Gs
+ */
+// ![[Rcpp::export]]
+void count_g(std::string seq) {
+  run_match m;
+  m.first = seq.begin();
+  m.second = seq.end();
+  int cnt = count_g_num(m);
+  Rcout << cnt << endl;
+}
+
 
 /**
  * Check content of runs
