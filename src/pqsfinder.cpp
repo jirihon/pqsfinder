@@ -48,25 +48,25 @@ public:
     int len;
     entry(int max_len) : density(max_len), score(0), len(0) {}
   };
-  typedef std::map<string, cache::entry>::iterator iterator;
-  typedef std::map<string, cache::entry>::value_type value_type;
+  typedef map<string, cache::entry>::iterator iterator;
+  typedef map<string, cache::entry>::value_type value_type;
   static const int use_treshold = 1000;
 
-  std::map<string, cache::entry> table;
+  map<string, cache::entry> table;
   int max_len;
 
   cache(const int max_len) : max_len(max_len) {}
 
-  inline entry *get(const std::string::const_iterator &s, const std::string::const_iterator &e) {
-    cache::iterator it = this->table.find(std::string(s, e));
+  inline entry *get(const string::const_iterator &s, const string::const_iterator &e) {
+    cache::iterator it = this->table.find(string(s, e));
     if (it == this->table.end())
       return NULL;
     else
       return &((*it).second);
   }
-  inline void put(const std::string::const_iterator &s, const std::string::const_iterator &e,
+  inline void put(const string::const_iterator &s, const string::const_iterator &e,
                   const cache::entry &entry) {
-    std::string seq = std::string(s, e);
+    string seq = string(s, e);
     cache::iterator it = this->table.find(seq);
     if (it == this->table.end())
       this->table.insert(cache::value_type(seq, entry));
