@@ -4,5 +4,6 @@ importFrom(Rcpp, evalCpp)
 import(GenomicRanges)
 import(Biostrings)
 import(IRanges)
+import(S4Vectors)
 
 useDynLib(pqsfinder)
