@@ -16,11 +16,32 @@ output:
 
 # Introduction
 
-The main functionality of the `r Biocpkg("pqsfinder")` package is to detect DNA sequence patterns that are likely to fold into an intramolecular G-quadruplex (G4). The main idea of our algorithmic approach is based on the fact that G4 structure arise from a compact sequence motif composed from four consecutive and possibly imperfect guanine runs (G-run) interrupted by loops of arbitrary lengths. The algorithm firstly identifies four consecutive G-run sequences and in the next step it checks the potential of such G-runs to be forming stable G4 and assignes corresponding quatitative score to each. Potential quadruplex-forming sequences (PQS) with non-zero score are then reported. It is important to note, that unlike many other approaches, our algorithm is able to detect PQS with imperfect G-runs containing bulges or mismatches and as such is more sensitive than competitive algorithms. We also believe the presented solution is the most scalable since it can be easily customizable (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details) to represent novel G4 types in the future.
+The main functionality of the `r Biocpkg("pqsfinder")` package is to detect DNA sequence patterns that are likely to fold into an intramolecular G-quadruplex (G4). The main idea of our algorithmic approach is based on the fact that G4 structure arise from a compact sequence motif composed from four consecutive and possibly imperfect guanine runs (G-run) interrupted by loops of arbitrary lengths. The algorithm firstly identifies four consecutive G-run sequences, in the next step it checks the potential of such G-runs to be forming stable G4 and assignes corresponding quatitative score to each. Potential quadruplex-forming sequences (PQS) with non-zero score are then reported. It is important to note, that unlike many other approaches, our algorithm is able to detect PQS with imperfect G-runs containing bulges or mismatches and as such is more sensitive than competitive algorithms. We also believe the presented solution is the most scalable since it can be easily customizable (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details) to represent novel G4 types in the future.
 
 # G4-quadruplex detection
 
+As usual, before first package use, it is necessary to load the `r Biocpkg("pqsfinder")` package using the following command:
+
+```{r pqsfinder, message=FALSE, warning=FALSE}
+library(pqsfinder)
+```
+
+Identification of potential quadruplex-forming sequences (PQS) in DNA is performed using the `pqsfinder` function. This function has one required parameter representing the studied DNA sequence in the form of a `DNAString` object and several modifying options with predefined values. For complete description, please see `pqsfinder` function man page.
+
 ## Basic quadruplex detection
+
+As a simple example, let's find all PQS in a short example DNA sequence.
+
+```{r basic_detection}
+seq <- DNAString("TTGGGGAAAGCAATGCCAGGCAGGGGGTTCCTTTCGTTACGGTCCGTCCC")
+pqs <- pqsfinder(seq)
+pqs
+```
+
+Detected triplexes are returned in the form of a `PQSViews` class, which represents the basic container for storing a set of views on the same input sequence similarly to `XStringViews` object from `r Biocpkg("Biostrings")` package (in fact `PQSViews` only extends the `XStringViews` class with the number of displayed columns). Each PQS in the view is defined by start location, width and score.
+
+Description of density vector.
+
 
 ## Modifying basic algorithm options
 
