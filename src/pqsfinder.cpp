@@ -663,7 +663,7 @@ void pqs_search(
 //'   the other hand, when \code{use_default_scoring} is disabled, custom
 //'   scoring function is evaluated on every PQS.
 //' @param use_default_scoring Enables default internal scoring system. This
-//'   option is particularly usefull in case you intend to radically change the
+//'   option is particularly useful in case you intend to radically change the
 //'   default behavior and specify your own scoring function. By disabling the
 //'   default scoring you will get a full control above the underlying detection
 //'   algorithm.
