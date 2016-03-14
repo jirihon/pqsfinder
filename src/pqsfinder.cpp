@@ -765,7 +765,7 @@ SEXP pqsfinder(
 
   #ifdef _GLIBCXX_DEBUG
   if (flags.use_prof)
-    ProfilerStart("samples.log");
+    ProfilerStart("profiling.log");
   #endif
 
   pqs_search(subject, seq, run_re, sc, opts, flags, res);
