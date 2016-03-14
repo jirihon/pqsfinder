@@ -541,7 +541,8 @@ void find_all_runs(
         {
           pqs_cnt = 0;
           checkUserInterrupt();
-          Rcout << "Search status: " << ceilf((m[0].first - ref)/(float)len*100) << " %\r";
+          if (!flags.verbose)
+            Rcout << "Search status: " << ceilf((m[0].first - ref)/(float)len*100) << " %\r";
         }
 
         if (pqs_best.score && pqs_start >= pqs_best.e)
