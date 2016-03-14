@@ -136,7 +136,7 @@ typedef struct flags {
   bool use_prof;
   bool verbose;
   bool debug;
-  bool use_internal_scoring;
+  bool use_default_scoring;
 } flags_t;
 
 typedef struct opts {
@@ -352,9 +352,9 @@ inline void score_loop_lengths(int &score, const run_match m[])
  * @param sc Scoring table
  * @example user function in R
    my_fn <- function(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4) {
-     print(subject)
-     cat(score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4, "\n")
-     return(score)
+      len <- loop_1 - start
+      if (len == loop_2 - run_2 && len == loop_3 - run_3 && len == start + width - run_4)
+      return(200)
    }
  */
 inline void check_custom_scoring_fn(int &score, const run_match m[], const scoring &sc, SEXP subject, const string::const_iterator ref)
@@ -549,12 +549,12 @@ void find_all_runs(
         }
 
         score = 0;
-        if (flags.use_internal_scoring) {
+        if (flags.use_default_scoring) {
           score_run_lengths(score, m);
           score_run_content(score, m, sc);
           score_loop_lengths(score, m);
         }
-        if (sc.custom_scoring_fn != NULL)
+        if ((score || !flags.use_default_scoring) && sc.custom_scoring_fn != NULL)
           check_custom_scoring_fn(score, m, sc, subject, ref);
 
         if (score) {
@@ -654,14 +654,17 @@ void pqs_search(
 //'   \code{run_2} - start pos. of run #2, \code{loop_2} - start pos. of loop
 //'   #2, \code{run_3} - start pos. of run #3, \code{loop_3} - start pos. of
 //'   loop #3, \code{run_4} - start pos. of run #4. Return value of the function
-//'   has to be new score represented as a single integer value. Note that this
-//'   function is invoked after all internal scoring functions are
-//'   evaluated.
-//' @param use_internal_scoring Enables internal scoring functions. This option
-//'   is particularly usefull in case you intend to radically change the default
-//'   behavior and specify your own scoring function. By disabling all internal
-//'   scoring functions you will get a full control above the underlying
-//'   detection algorithm.
+//'   has to be new score represented as a single integer value. Please note
+//'   that if \code{use_default_scoring} is enabled, the custom scoring function
+//'   is evaluated AFTER the default scoring system but ONLY IF the default
+//'   scoring system resulted in non-zero score (for performance reasons). On
+//'   the other hand, when \code{use_default_scoring} is disabled, custom
+//'   scoring function is evaluated on every PQS.
+//' @param use_default_scoring Enables default internal scoring system. This
+//'   option is particularly usefull in case you intend to radically change the
+//'   default behavior and specify your own scoring function. By disabling the
+//'   default scoring you will get a full control above the underlying detection
+//'   algorithm.
 //' @param verbose Enables detailed output. Turn it on if you want to see all
 //'   possible PQS found at each positions and not just the best one. It is
 //'   highly recommended to use this option for debugging custom quadruplex
@@ -689,7 +692,7 @@ SEXP pqsfinder(
     int mismatch_penalty = 10,
     std::string run_re = "G{1,5}.{0,5}G{1,5}",
     SEXP custom_scoring_fn = R_NilValue,
-    bool use_internal_scoring = true,
+    bool use_default_scoring = true,
     bool verbose = false)
 {
   Function as_character("as.character");
@@ -708,7 +711,7 @@ SEXP pqsfinder(
   flags.use_prof = false;
   flags.debug = false;
   flags.verbose = verbose;
-  flags.use_internal_scoring = use_internal_scoring;
+  flags.use_default_scoring = use_default_scoring;
 
   if (run_re != "G{1,5}.{0,5}G{1,5}")
     // User specified its own regexp, force to use regexp engine
