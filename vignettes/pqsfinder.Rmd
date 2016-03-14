@@ -4,8 +4,8 @@ author: "Jiří Hon, Matej Lexa, Tomáš Martínek"
 date: "`r doc_date()`"
 package: "`r pkg_ver('pqsfinder')`"
 abstract: >
-  Instructions on enabling _Bioconductor_ style 
-  in your _R_ markdown vignettes.
+  Instructions on using `r Biocpkg("pqsfinder")` package for detecting DNA sequence patterns
+  that are likely to fold into an intramolecular G-quadruplex.
 vignette: >
   %\VignetteIndexEntry{pqsfinder: User Guide}
   %\VignetteEngine{knitr::rmarkdown}
@@ -13,6 +13,32 @@ vignette: >
 output: 
   BiocStyle::html_document
 ---
+
+# Introduction
+
+The main functionality of the `r Biocpkg("pqsfinder")` package is to detect DNA sequence patterns that are likely to fold into an intramolecular G-quadruplex (G4). The main idea of our algorithmic approach is based on the fact that G4 structure arise from a compact sequence motif composed from four consecutive and possibly imperfect guanine runs (G-run) interrupted by loops of arbitrary lengths. The algorithm firstly identifies four consecutive G-run sequences and in the next step it checks the potential of such G-runs to be forming stable G4 and assignes corresponding quatitative score to each. Potential quadruplex-forming sequences (PQS) with non-zero score are then reported. It is important to note, that unlike many other approaches, our algorithm is able to detect PQS with imperfect G-runs containing bulges or mismatches and as such is more sensitive than competitive algorithms. We also believe the presented solution is the most scalable since it can be easily customizable (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details) to represent novel G4 types in the future.
+
+# G4-quadruplex detection
+
+## Basic quadruplex detection
+
+## Modifying basic algorithm options
+
+# Exporting results
+
+## GRanges conversion
+
+## DNAStringSet conversion
+
+# Customizing detection algorithm
+
+## Custom scoring function
+
+Only perfect ones: run_re = G+ + custom_scoring_fn
+
+## How to disable default internal scoring
+
+Basic interstrand quadruplexes
 
 # Prerequisites
 
