@@ -8,6 +8,7 @@
 
 #include <Rcpp.h>
 #include <string>
+#include <string.h>
 #include <algorithm>
 #include <boost/regex.hpp>
 #ifdef _GLIBCXX_DEBUG
@@ -70,8 +71,6 @@ public:
     cache::iterator it = this->table.find(seq);
     if (it == this->table.end())
       this->table.insert(cache::value_type(seq, entry));
-    else if (entry.density[0] > (*it).second.density[0])
-      (*it).second = entry;
   }
 };
 
@@ -83,7 +82,7 @@ public:
   vector<int> score;
   int *density;
 
-  int min_score;
+  const int min_score;
 
   results(const int seq_len, const int min_score) : min_score(min_score) {
     this->density = (int *)calloc(seq_len, sizeof(int));
@@ -114,27 +113,32 @@ public:
 
 class scoring {
 public:
-  int g_bonus;
+  int tetrad_bonus;
   int bulge_penalty;
   int mismatch_penalty;
-  Function *user_fn;
+  Function *custom_scoring_fn;
 
   scoring() {
-    user_fn = NULL;
+    custom_scoring_fn = NULL;
   }
   ~scoring() {
-    if (user_fn != NULL)
-      delete user_fn;
+    if (custom_scoring_fn != NULL)
+      delete custom_scoring_fn;
   }
-  void set_user_fn(SEXP user_fn) {
-    this->user_fn = new Function(user_fn);
+  void set_custom_scoring_fn(SEXP custom_scoring_fn) {
+    this->custom_scoring_fn = new Function(custom_scoring_fn);
   }
 };
 
 typedef struct flags {
   bool use_cache;
   bool use_re;
+  bool use_prof;
+  bool verbose;
   bool debug;
+  bool score_run_lengths;
+  bool score_run_content;
+  bool score_loop_lengths;
 } flags_t;
 
 typedef struct opts {
@@ -174,7 +178,7 @@ public:
  */
 inline void print_pqs(const run_match m[], int score, const string::const_iterator ref, const int cnt)
 {
-  Rcout << cnt << ": " << m[0].first - ref << "[" << string(m[0].first, m[0].second) << "]";
+  Rcout << m[0].first - ref + 1 << " " << cnt << " "  << "[" << string(m[0].first, m[0].second) << "]";
   for (int i = 1; i < RUN_CNT; i++)
     Rcout << string(m[i-1].second, m[i].first) << "[" << string(m[i].first, m[i].second) << "]";
   Rcout << " " << score << endl;
@@ -188,7 +192,7 @@ inline void print_pqs(const run_match m[], int score, const string::const_iterat
  * @param m Quadruplex runs
  * @param sc Scoring table
  */
-inline void check_run_lengths(int &score, const run_match m[])
+inline void score_run_lengths(int &score, const run_match m[])
 {
   int w1,w2,w3,w4;
   w1 = m[0].length();
@@ -208,7 +212,7 @@ inline void check_run_lengths(int &score, const run_match m[])
       (w1 <  w2 && w1 == w3 && w1 == w4) ||
       (w1 == w2 && w2 <  w3 && w1 == w4) ||
       (w1 == w2 && w1 == w3 && w1 <  w4))
-    score++;
+    score = 1;
 }
 
 /**
@@ -251,8 +255,11 @@ void count_g(std::string seq) {
  * @param m Quadruples runs
  * @param sc Scoring table
  */
-inline void check_run_content(int &score, const run_match m[], const scoring &sc)
+inline void score_run_content(int &score, const run_match m[], const scoring &sc)
 {
+  if (score == 0)
+    return;
+
   int g1,g2,g3,g4,w1,w2,w3,w4;
   w1 = m[0].length();
   w2 = m[1].length();
@@ -279,29 +286,29 @@ inline void check_run_content(int &score, const run_match m[], const scoring &sc
    */
   if (g1 == w1 && g2 == w2 && w3 == g3 && w4 == g4 && w1 == w2 && w2 == w3 && w3 == w4)
   {// canonical g-quadruplex
-    score += g1 * sc.g_bonus;
+    score += g1 * sc.tetrad_bonus;
   }
   else if ((g2 == w2 && g1 >= g2 && g2 == g3 && g2 == g4))
   {// bulge in the first run
-    score += g2 * sc.g_bonus - sc.bulge_penalty;
+    score += g2 * sc.tetrad_bonus - sc.bulge_penalty;
   }
   else if ((g1 == w1 && g1 <= g2 && g1 == g3 && g1 == g4) ||
            (g1 == w1 && g1 == g2 && g1 <= g3 && g1 == g4) ||
           (g1 == w1 && g1 == g2 && g1 == g3 && g1 <= g4))
   {// bulge in the second, third or fourth run
-    score += g1 * sc.g_bonus - sc.bulge_penalty;
+    score += g1 * sc.tetrad_bonus - sc.bulge_penalty;
   }
   else if (w1 == w2 && w1 == w3 && w1 == w4)
   {// bulges with same width, check for single mismatch
     if ((g2 == w2 && g1 == g2-1 && g2 == g3   && g2 == g4))
     {// mismatch in first run
-      score += g2 * sc.g_bonus - sc.mismatch_penalty;
+      score += g2 * sc.tetrad_bonus - sc.mismatch_penalty;
     }
     else if ((g1 == w1 && g1-1 == g2 && g1 == g3   && g1 == g4) ||
              (g1 == w1 && g1 == g2   && g1-1 == g3 && g1 == g4) ||
              (g1 == w1 && g1 == g2   && g1 == g3   && g1-1 == g4))
     {// mismatch in second, third or fourth run
-      score += g1 * sc.g_bonus - sc.mismatch_penalty;
+      score += g1 * sc.tetrad_bonus - sc.mismatch_penalty;
     }
   }
   else {// runs with invalid content
@@ -316,8 +323,11 @@ inline void check_run_content(int &score, const run_match m[], const scoring &sc
  * @param score Quadruplex score
  * @param m Quadruples runs
  */
-inline void check_loop_lengths(int &score, const run_match m[])
+inline void score_loop_lengths(int &score, const run_match m[])
 {
+  if (score == 0)
+    return;
+
   int l1, l2, l3;
   l1 = m[1].first - m[0].second;
   l2 = m[2].first - m[1].second;
@@ -349,7 +359,7 @@ inline void check_loop_lengths(int &score, const run_match m[])
      return(score)
    }
  */
-inline void check_user_fn(int &score, const run_match m[], const scoring &sc, SEXP subject, const string::const_iterator ref)
+inline void check_custom_scoring_fn(int &score, const run_match m[], const scoring &sc, SEXP subject, const string::const_iterator ref)
 {
   int start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4;
 
@@ -362,7 +372,7 @@ inline void check_user_fn(int &score, const run_match m[], const scoring &sc, SE
   loop_3 = m[2].second - ref + 1;
   run_4 = m[3].first - ref + 1;
 
-  score = as<int>((*sc.user_fn)(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4));
+  score = as<int>((*sc.custom_scoring_fn)(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4));
 }
 
 
@@ -387,6 +397,7 @@ inline void check_gc_skew(int &score, run_match m[])
   int run_sum_len = m[0].length() + m[1].length() + m[2].length() + m[3].length();
   score = score - (run_sum_len - max(gc_skew, 0));
 }
+
 
 /**
  * Perform run search on particular sequence region
@@ -471,7 +482,6 @@ void find_all_runs(
     {// Specific code for the first run matching
       if (flags.use_cache && pqs_cache.density[0] > cache::use_treshold)
       {
-        Rcout << "Cache get " << string(s, min(s + opts.max_len, end)) << endl;
         cache_hit = ctable.get(s, min(s + opts.max_len, end));
 
         if (cache_hit != NULL) {
@@ -541,13 +551,14 @@ void find_all_runs(
         }
 
         score = 0;
-        check_run_lengths(score, m);
-        if (score)
-          check_run_content(score, m, sc);
-        if (score)
-          check_loop_lengths(score, m);
-        if (score && sc.user_fn != NULL)
-          check_user_fn(score, m, sc, subject, ref);
+        if (flags.score_run_lengths)
+          score_run_lengths(score, m);
+        if (flags.score_run_content)
+          score_run_content(score, m, sc);
+        if (flags.score_loop_lengths)
+          score_loop_lengths(score, m);
+        if (sc.custom_scoring_fn != NULL)
+          check_custom_scoring_fn(score, m, sc, subject, ref);
 
         if (score) {
           // Current PQS satisfied all constraints.
@@ -566,7 +577,7 @@ void find_all_runs(
             pqs_best.s = pqs_start;
             pqs_best.e = e;
           }
-          if (flags.debug)
+          if (flags.verbose)
             print_pqs(m, score, ref, pqs_cache.density[0]);
         }
       }
@@ -635,23 +646,35 @@ void pqs_search(
 //' @param run_max_len Maximal length of quadruplex run.
 //' @param loop_min_len Minimal length of quadruplex loop.
 //' @param loop_max_len Maxmimal length of quadruplex loop.
-//' @param g_bonus Score bonus for one complete G tetrade.
+//' @param tetrad_bonus Score bonus for one complete G tetrade.
 //' @param bulge_penalty Penalization for a bulge in quadruplex run.
 //' @param mismatch_penalty Penalization for a mismatch in tetrad.
 //' @param run_re Regular expression specifying one run of quadruplex.
-//' @param user_fn Custom quadruplex scoring function. It takes the following 10
-//' arguments: \code{subject} - Input DNAString object, \code{score} - implicit PQS score,
-//' \code{start} - PQS start position, \code{width} - PQS width, \code{loop_1} - start pos. of loop #1,
-//' \code{run_2} - start pos. of run #2, \code{loop_2} - start pos. of loop #2,
-//' \code{run_3} - start pos. of run #3, \code{loop_3} - start pos. of loop #3,
-//' \code{run_4} - start pos. of run #4. Return value of the function should be new score
-//' represented as asingle integer value.
-//' @param use_cache Use cache for low complexity regions?
-//' @param use_re Use regular expression engine to validate quadruplex run?
-//' @param use_prof Enables profiling.
-//' @param debug Enables detailed debugging output. Turn it on if you want
-//' to see all possible quadruplexes found at each positions and not just
-//' the best one.
+//' @param scoring_fns Vector of names representing internal scoring functions
+//'   that should be applied on each PQS. This option is particularly usefull in
+//'   case you intend to radically change the default behavior and specify your
+//'   own scoring function. By setting an empty vector you can disable all
+//'   internal scoring functions and have a full control above the underlying
+//'   detection algorithm.
+//' @param custom_scoring_fn Custom quadruplex scoring function. It takes the
+//'   following 10 arguments: \code{subject} - Input DNAString object,
+//'   \code{score} - implicit PQS score, \code{start} - PQS start position,
+//'   \code{width} - PQS width, \code{loop_1} - start pos. of loop #1,
+//'   \code{run_2} - start pos. of run #2, \code{loop_2} - start pos. of loop
+//'   #2, \code{run_3} - start pos. of run #3, \code{loop_3} - start pos. of
+//'   loop #3, \code{run_4} - start pos. of run #4. Return value of the function
+//'   has to be new score represented as a single integer value. Note that this
+//'   function is invoked after all internal scoring functions specified by
+//'   \code{scoring_fns} are evaluated and only in the case PQS was assigned
+//'   non-zero score (for performance reasons).
+//' @param verbose Enables detailed output. Turn it on if you want to see all
+//'   possible PQS found at each positions and not just the best one. It is
+//'   highly recommended to use this option for debugging custom quadruplex
+//'   scoring function. Each PQS is reported on separate row in the following
+//'   format: \code{start cnt pqs_sequence score}, where \code{start} is the PQS
+//'   starting position, \code{pqs_sequence} shows the PQS sequence structure
+//'   with each run surrounded by square brackets and \code{score} is the score
+//'   assigned to the particular PQS by all applied scoring functions.
 //' @return \code{\link{PQSViews}} object
 //'
 //' @examples
@@ -666,15 +689,14 @@ SEXP pqsfinder(
     int run_max_len = 11,
     int loop_min_len = 0,
     int loop_max_len = 30,
-    int g_bonus = 20,
+    int tetrad_bonus = 20,
     int bulge_penalty = 10,
     int mismatch_penalty = 10,
     std::string run_re = "G{1,5}.{0,5}G{1,5}",
-    SEXP user_fn = R_NilValue,
-    bool use_cache = 1,
-    bool use_re = 0,
-    bool use_prof = 0,
-    bool debug = 0)
+    CharacterVector scoring_fns =
+      CharacterVector::create("score_run_lengths", "score_run_content", "score_loop_lengths"),
+    SEXP custom_scoring_fn = R_NilValue,
+    bool verbose = 0)
 {
   Function as_character("as.character");
   Function get_class("class");
@@ -686,14 +708,28 @@ SEXP pqsfinder(
 
   string seq = as<string>(as_character(subject));
 
+  flags_t flags;
+  flags.use_cache = true;
+  flags.use_re = false;
+  flags.use_prof = false;
+  flags.debug = false;
+  flags.verbose = verbose;
+  flags.score_run_lengths = false;
+  flags.score_run_content = false;
+  flags.score_loop_lengths = false;
+
+  for (CharacterVector::iterator it = scoring_fns.begin(); it < scoring_fns.end(); ++it) {
+    if (strcmp(*it, "score_run_lengths") == 0)
+      flags.score_run_lengths = true;
+    else if (strcmp(*it, "score_run_content") == 0)
+      flags.score_run_content = true;
+    else if (strcmp(*it, "score_loop_lengths") == 0)
+      flags.score_loop_lengths = true;
+  }
+
   if (run_re != "G{1,5}.{0,5}G{1,5}")
     // User specified its own regexp, force to use regexp engine
-    use_re = true;
-
-  flags_t flags;
-  flags.use_cache = use_cache;
-  flags.use_re = use_re;
-  flags.debug = debug;
+    flags.use_re = true;
 
   opts_t opts;
   opts.max_len = max_len;
@@ -704,7 +740,7 @@ SEXP pqsfinder(
   opts.run_min_len = run_min_len;
 
   scoring sc;
-  sc.g_bonus = g_bonus;
+  sc.tetrad_bonus = tetrad_bonus;
   sc.bulge_penalty = bulge_penalty;
   sc.mismatch_penalty = mismatch_penalty;
 
@@ -715,27 +751,27 @@ SEXP pqsfinder(
     Rcout << "Use cache: " << flags.use_cache << endl;
     Rcout << "Use regexp engine: " << flags.use_re << endl;
     Rcout << "Input sequence length: " << seq.length() << endl;
-    Rcout << "Use user fn: " << (user_fn != R_NilValue) << endl;
+    Rcout << "Use user fn: " << (custom_scoring_fn != R_NilValue) << endl;
   }
 
-  if (user_fn != R_NilValue) {
-    sc.set_user_fn(user_fn);
+  if (custom_scoring_fn != R_NilValue) {
+    sc.set_custom_scoring_fn(custom_scoring_fn);
     if (flags.debug) {
       Rcout << "User function: " << endl;
       Function show("show");
-      show(user_fn);
+      show(custom_scoring_fn);
     }
   }
 
   #ifdef _GLIBCXX_DEBUG
-  if (use_prof)
+  if (flags.use_prof)
     ProfilerStart("samples.log");
   #endif
 
   pqs_search(subject, seq, run_re, sc, opts, flags, res);
 
   #ifdef _GLIBCXX_DEBUG
-  if (use_prof)
+  if (flags.use_prof)
     ProfilerStop();
   #endif
 
