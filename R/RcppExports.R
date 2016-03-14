@@ -17,12 +17,6 @@
 #' @param bulge_penalty Penalization for a bulge in quadruplex run.
 #' @param mismatch_penalty Penalization for a mismatch in tetrad.
 #' @param run_re Regular expression specifying one run of quadruplex.
-#' @param scoring_fns Vector of names representing internal scoring functions
-#'   that should be applied on each PQS. This option is particularly usefull in
-#'   case you intend to radically change the default behavior and specify your
-#'   own scoring function. By setting an empty vector you can disable all
-#'   internal scoring functions and have a full control above the underlying
-#'   detection algorithm.
 #' @param custom_scoring_fn Custom quadruplex scoring function. It takes the
 #'   following 10 arguments: \code{subject} - Input DNAString object,
 #'   \code{score} - implicit PQS score, \code{start} - PQS start position,
@@ -31,9 +25,13 @@
 #'   #2, \code{run_3} - start pos. of run #3, \code{loop_3} - start pos. of
 #'   loop #3, \code{run_4} - start pos. of run #4. Return value of the function
 #'   has to be new score represented as a single integer value. Note that this
-#'   function is invoked after all internal scoring functions specified by
-#'   \code{scoring_fns} are evaluated and only in the case PQS was assigned
-#'   non-zero score (for performance reasons).
+#'   function is invoked after all internal scoring functions are
+#'   evaluated.
+#' @param use_internal_scoring Enables internal scoring functions. This option
+#'   is particularly usefull in case you intend to radically change the default
+#'   behavior and specify your own scoring function. By disabling all internal
+#'   scoring functions you will get a full control above the underlying
+#'   detection algorithm.
 #' @param verbose Enables detailed output. Turn it on if you want to see all
 #'   possible PQS found at each positions and not just the best one. It is
 #'   highly recommended to use this option for debugging custom quadruplex
@@ -47,7 +45,7 @@
 #' @examples
 #' pv <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
 #'
-pqsfinder <- function(subject, max_len = 70L, min_score = 0L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, tetrad_bonus = 20L, bulge_penalty = 10L, mismatch_penalty = 10L, run_re = "G{1,5}.{0,5}G{1,5}", scoring_fns = as.character( c("score_run_lengths", "score_run_content", "score_loop_lengths")), custom_scoring_fn = NULL, verbose = 0L) {
-    .Call('pqsfinder_pqsfinder', PACKAGE = 'pqsfinder', subject, max_len, min_score, run_min_len, run_max_len, loop_min_len, loop_max_len, tetrad_bonus, bulge_penalty, mismatch_penalty, run_re, scoring_fns, custom_scoring_fn, verbose)
+pqsfinder <- function(subject, max_len = 70L, min_score = 0L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, tetrad_bonus = 20L, bulge_penalty = 10L, mismatch_penalty = 10L, run_re = "G{1,5}.{0,5}G{1,5}", custom_scoring_fn = NULL, use_internal_scoring = TRUE, verbose = FALSE) {
+    .Call('pqsfinder_pqsfinder', PACKAGE = 'pqsfinder', subject, max_len, min_score, run_min_len, run_max_len, loop_min_len, loop_max_len, tetrad_bonus, bulge_penalty, mismatch_penalty, run_re, custom_scoring_fn, use_internal_scoring, verbose)
 }
 

@@ -6,8 +6,8 @@
 using namespace Rcpp;
 
 // pqsfinder
-SEXP pqsfinder(SEXP subject, int max_len, int min_score, int run_min_len, int run_max_len, int loop_min_len, int loop_max_len, int tetrad_bonus, int bulge_penalty, int mismatch_penalty, std::string run_re, CharacterVector scoring_fns, SEXP custom_scoring_fn, bool verbose);
-RcppExport SEXP pqsfinder_pqsfinder(SEXP subjectSEXP, SEXP max_lenSEXP, SEXP min_scoreSEXP, SEXP run_min_lenSEXP, SEXP run_max_lenSEXP, SEXP loop_min_lenSEXP, SEXP loop_max_lenSEXP, SEXP tetrad_bonusSEXP, SEXP bulge_penaltySEXP, SEXP mismatch_penaltySEXP, SEXP run_reSEXP, SEXP scoring_fnsSEXP, SEXP custom_scoring_fnSEXP, SEXP verboseSEXP) {
+SEXP pqsfinder(SEXP subject, int max_len, int min_score, int run_min_len, int run_max_len, int loop_min_len, int loop_max_len, int tetrad_bonus, int bulge_penalty, int mismatch_penalty, std::string run_re, SEXP custom_scoring_fn, bool use_internal_scoring, bool verbose);
+RcppExport SEXP pqsfinder_pqsfinder(SEXP subjectSEXP, SEXP max_lenSEXP, SEXP min_scoreSEXP, SEXP run_min_lenSEXP, SEXP run_max_lenSEXP, SEXP loop_min_lenSEXP, SEXP loop_max_lenSEXP, SEXP tetrad_bonusSEXP, SEXP bulge_penaltySEXP, SEXP mismatch_penaltySEXP, SEXP run_reSEXP, SEXP custom_scoring_fnSEXP, SEXP use_internal_scoringSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
@@ -22,10 +22,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type bulge_penalty(bulge_penaltySEXP);
     Rcpp::traits::input_parameter< int >::type mismatch_penalty(mismatch_penaltySEXP);
     Rcpp::traits::input_parameter< std::string >::type run_re(run_reSEXP);
-    Rcpp::traits::input_parameter< CharacterVector >::type scoring_fns(scoring_fnsSEXP);
     Rcpp::traits::input_parameter< SEXP >::type custom_scoring_fn(custom_scoring_fnSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_internal_scoring(use_internal_scoringSEXP);
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    __result = Rcpp::wrap(pqsfinder(subject, max_len, min_score, run_min_len, run_max_len, loop_min_len, loop_max_len, tetrad_bonus, bulge_penalty, mismatch_penalty, run_re, scoring_fns, custom_scoring_fn, verbose));
+    __result = Rcpp::wrap(pqsfinder(subject, max_len, min_score, run_min_len, run_max_len, loop_min_len, loop_max_len, tetrad_bonus, bulge_penalty, mismatch_penalty, run_re, custom_scoring_fn, use_internal_scoring, verbose));
     return __result;
 END_RCPP
 }

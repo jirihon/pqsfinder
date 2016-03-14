@@ -136,9 +136,7 @@ typedef struct flags {
   bool use_prof;
   bool verbose;
   bool debug;
-  bool score_run_lengths;
-  bool score_run_content;
-  bool score_loop_lengths;
+  bool use_internal_scoring;
 } flags_t;
 
 typedef struct opts {
@@ -551,12 +549,11 @@ void find_all_runs(
         }
 
         score = 0;
-        if (flags.score_run_lengths)
+        if (flags.use_internal_scoring) {
           score_run_lengths(score, m);
-        if (flags.score_run_content)
           score_run_content(score, m, sc);
-        if (flags.score_loop_lengths)
           score_loop_lengths(score, m);
+        }
         if (sc.custom_scoring_fn != NULL)
           check_custom_scoring_fn(score, m, sc, subject, ref);
 
@@ -650,12 +647,6 @@ void pqs_search(
 //' @param bulge_penalty Penalization for a bulge in quadruplex run.
 //' @param mismatch_penalty Penalization for a mismatch in tetrad.
 //' @param run_re Regular expression specifying one run of quadruplex.
-//' @param scoring_fns Vector of names representing internal scoring functions
-//'   that should be applied on each PQS. This option is particularly usefull in
-//'   case you intend to radically change the default behavior and specify your
-//'   own scoring function. By setting an empty vector you can disable all
-//'   internal scoring functions and have a full control above the underlying
-//'   detection algorithm.
 //' @param custom_scoring_fn Custom quadruplex scoring function. It takes the
 //'   following 10 arguments: \code{subject} - Input DNAString object,
 //'   \code{score} - implicit PQS score, \code{start} - PQS start position,
@@ -664,9 +655,13 @@ void pqs_search(
 //'   #2, \code{run_3} - start pos. of run #3, \code{loop_3} - start pos. of
 //'   loop #3, \code{run_4} - start pos. of run #4. Return value of the function
 //'   has to be new score represented as a single integer value. Note that this
-//'   function is invoked after all internal scoring functions specified by
-//'   \code{scoring_fns} are evaluated and only in the case PQS was assigned
-//'   non-zero score (for performance reasons).
+//'   function is invoked after all internal scoring functions are
+//'   evaluated.
+//' @param use_internal_scoring Enables internal scoring functions. This option
+//'   is particularly usefull in case you intend to radically change the default
+//'   behavior and specify your own scoring function. By disabling all internal
+//'   scoring functions you will get a full control above the underlying
+//'   detection algorithm.
 //' @param verbose Enables detailed output. Turn it on if you want to see all
 //'   possible PQS found at each positions and not just the best one. It is
 //'   highly recommended to use this option for debugging custom quadruplex
@@ -693,10 +688,9 @@ SEXP pqsfinder(
     int bulge_penalty = 10,
     int mismatch_penalty = 10,
     std::string run_re = "G{1,5}.{0,5}G{1,5}",
-    CharacterVector scoring_fns =
-      CharacterVector::create("score_run_lengths", "score_run_content", "score_loop_lengths"),
     SEXP custom_scoring_fn = R_NilValue,
-    bool verbose = 0)
+    bool use_internal_scoring = true,
+    bool verbose = false)
 {
   Function as_character("as.character");
   Function get_class("class");
@@ -714,18 +708,7 @@ SEXP pqsfinder(
   flags.use_prof = false;
   flags.debug = false;
   flags.verbose = verbose;
-  flags.score_run_lengths = false;
-  flags.score_run_content = false;
-  flags.score_loop_lengths = false;
-
-  for (CharacterVector::iterator it = scoring_fns.begin(); it < scoring_fns.end(); ++it) {
-    if (strcmp(*it, "score_run_lengths") == 0)
-      flags.score_run_lengths = true;
-    else if (strcmp(*it, "score_run_content") == 0)
-      flags.score_run_content = true;
-    else if (strcmp(*it, "score_loop_lengths") == 0)
-      flags.score_loop_lengths = true;
-  }
+  flags.use_internal_scoring = use_internal_scoring;
 
   if (run_re != "G{1,5}.{0,5}G{1,5}")
     // User specified its own regexp, force to use regexp engine
