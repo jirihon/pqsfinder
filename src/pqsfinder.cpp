@@ -308,6 +308,8 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
     {// mismatch in second, third or fourth run
       score += g1 * sc.tetrad_bonus - sc.mismatch_penalty;
     }
+    else
+      score = 0;
   }
   else {// runs with invalid content
     score = 0;
