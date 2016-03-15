@@ -276,7 +276,7 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
       ++perfects;
     else if (w[i] == w[pi] && g[i] == g[pi] - 1)
       ++mismatches;
-    else if (w[i] > w[pi] && g[i] >= g[pi])
+    else if (w[i] > w[pi] && g[i] >= g[pi] && *(m[i].first) == 'G' && *(m[i].second - 1) == 'G')
       ++bulges;
     else {
       score = 0;
@@ -444,8 +444,8 @@ inline void check_gc_skew(int &score, run_match m[])
  * @return True on success, false otherwise
  */
 inline bool find_run(
-    string::const_iterator start,
-    string::const_iterator end,
+    const string::const_iterator start,
+    const string::const_iterator end,
     run_match &m,
     const boost::regex &run_re_c,
     const opts_t &opts,
@@ -462,19 +462,20 @@ inline bool find_run(
       m.second = boost_m[0].second;
     }
   } else {
-    while (*s != 'G' && s < e) ++s;
-    // s = max(s - 1, start); // if it is possible to extend one mismatch left, do it.
+    while (*s != 'G' && s < end) ++s;
+    s = max(s - 1, start); // if it is possible to extend one mismatch left, do it.
 
-    e = min(s + opts.run_max_len, e);
+    e = min(s + opts.run_max_len, end);
     --e; // <e> points to past-the-end character and as such should not be dereferenced
-    while (*e != 'G' && e > s) --e;
+    while (*e != 'G' && e > start) --e;
 
-    // e = min(e + 1, end); // if it is possible to extend one mismatch right, do it.
+    ++e; // correction to point on past-the-end character
+    e = min(e + 1, end); // if it is possible to extend one mismatch right, do it.
 
     status = (s < e);
     if (status) {
       m.first = s;
-      m.second = e + 1; // correction to point on past-the-end character
+      m.second = e;
     }
   }
   return status;
@@ -736,7 +737,7 @@ SEXP pqsfinder(
     int mismatch_penalty = 10,
     int max_bulges = 3,
     int max_mismatches = 3,
-    std::string run_re = "G{1,5}.{0,5}G{1,5}",
+    std::string run_re = ".?G{1,5}.{0,5}G{1,5}.?",
     SEXP custom_scoring_fn = R_NilValue,
     bool use_default_scoring = true,
     bool verbose = false)
@@ -759,7 +760,7 @@ SEXP pqsfinder(
   flags.verbose = verbose;
   flags.use_default_scoring = use_default_scoring;
 
-  if (run_re != "G{1,5}.{0,5}G{1,5}")
+  if (run_re != ".?G{1,5}.{0,5}G{1,5}.?")
     // User specified its own regexp, force to use regexp engine
     flags.use_re = true;
 
