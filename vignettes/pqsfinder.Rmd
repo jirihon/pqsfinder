@@ -46,6 +46,7 @@ Detected PQS are returned in the form of a `PQSViews` class, which represents th
 data.frame(b = start(pqs), w = width(pqs), s = score(pqs))
 ```
 
+As `pqsfinder` function reports only the best non-overlapping PQS, it might be useful to 
 
 Description of density vector.
 

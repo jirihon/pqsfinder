@@ -32,8 +32,8 @@ using namespace std;
 
 
 // Implementation constants
-const int RUN_CNT = 4;
-const int CHECK_INT_PERIOD = 2e7;
+static const int RUN_CNT = 4;
+static const int CHECK_INT_PERIOD = 2e7;
 
 
 /**
@@ -116,6 +116,8 @@ public:
   int tetrad_bonus;
   int bulge_penalty;
   int mismatch_penalty;
+  int max_bulges;
+  int max_mimatches;
   Function *custom_scoring_fn;
 
   scoring() {
@@ -255,65 +257,96 @@ void count_g(std::string seq) {
  */
 inline void score_run_content(int &score, const run_match m[], const scoring &sc)
 {
-  if (score == 0)
-    return;
+  int w[RUN_CNT], g[RUN_CNT];
+  int pi = -1, mismatches = 0, bulges = 0, perfects = 0;
 
-  int g1,g2,g3,g4,w1,w2,w3,w4;
-  w1 = m[0].length();
-  w2 = m[1].length();
-  w3 = m[2].length();
-  w4 = m[3].length();
-  g1 = count_g_num(m[0]);
-  g2 = count_g_num(m[1]);
-  g3 = count_g_num(m[2]);
-  g4 = count_g_num(m[3]);
-
-  // Rcout << w1 << " " << w2 << " " << w3 << " " << w4 << endl;
-  // Rcout << g1 << " " << g2 << " " << g3 << " " << g4 << endl;
-
-  /*
-   * Allowed combinations:
-   * g g g g
-   * R g g g
-   * g R g g
-   * g g R g
-   * g g g R
-   *
-   * Legend: g means that wi = gi
-   *         R repesents one longer run
-   */
-  if (g1 == w1 && g2 == w2 && w3 == g3 && w4 == g4 && w1 == w2 && w2 == w3 && w3 == w4)
-  {// canonical g-quadruplex
-    score += g1 * sc.tetrad_bonus;
+  for (int i = 0; i < RUN_CNT; ++i) {
+    w[i] = m[i].length();
+    g[i] = count_g_num(m[i]);
+    if (g[i] == w[i] && (pi == -1 || w[i] < w[pi]))
+      pi = i;
   }
-  else if ((g2 == w2 && g1 >= g2 && g2 == g3 && g2 == g4))
-  {// bulge in the first run
-    score += g2 * sc.tetrad_bonus - sc.bulge_penalty;
-  }
-  else if ((g1 == w1 && g1 <= g2 && g1 == g3 && g1 == g4) ||
-           (g1 == w1 && g1 == g2 && g1 <= g3 && g1 == g4) ||
-          (g1 == w1 && g1 == g2 && g1 == g3 && g1 <= g4))
-  {// bulge in the second, third or fourth run
-    score += g1 * sc.tetrad_bonus - sc.bulge_penalty;
-  }
-  else if (w1 == w2 && w1 == w3 && w1 == w4)
-  {// bulges with same width, check for single mismatch
-    if ((g2 == w2 && g1 == g2-1 && g2 == g3   && g2 == g4))
-    {// mismatch in first run
-      score += g2 * sc.tetrad_bonus - sc.mismatch_penalty;
-    }
-    else if ((g1 == w1 && g1-1 == g2 && g1 == g3   && g1 == g4) ||
-             (g1 == w1 && g1 == g2   && g1-1 == g3 && g1 == g4) ||
-             (g1 == w1 && g1 == g2   && g1 == g3   && g1-1 == g4))
-    {// mismatch in second, third or fourth run
-      score += g1 * sc.tetrad_bonus - sc.mismatch_penalty;
-    }
-    else
-      score = 0;
-  }
-  else {// runs with invalid content
+  if (pi < 0)
+  {// at least one run must be perfect
     score = 0;
+    return;
   }
+  for (int i = 0; i < RUN_CNT; ++i) {
+    if (w[i] == w[pi] && g[i] == g[pi])
+      ++perfects;
+    else if (w[i] == w[pi] && g[i] == g[pi] - 1)
+      ++mismatches;
+    else if (w[i] > w[pi] && g[i] >= g[pi])
+      ++bulges;
+    else {
+      score = 0;
+      return;
+    }
+  }
+  if (mismatches <= sc.max_mimatches && bulges <= sc.max_bulges)
+    score = w[pi] * sc.tetrad_bonus - mismatches * sc.mismatch_penalty - bulges * sc.bulge_penalty;
+  else
+    score = 0;
+
+  // if (score == 0)
+  //   return;
+  //
+  // int g1,g2,g3,g4,w1,w2,w3,w4;
+  // w1 = m[0].length();
+  // w2 = m[1].length();
+  // w3 = m[2].length();
+  // w4 = m[3].length();
+  // g1 = count_g_num(m[0]);
+  // g2 = count_g_num(m[1]);
+  // g3 = count_g_num(m[2]);
+  // g4 = count_g_num(m[3]);
+  //
+  // // Rcout << w1 << " " << w2 << " " << w3 << " " << w4 << endl;
+  // // Rcout << g1 << " " << g2 << " " << g3 << " " << g4 << endl;
+  //
+  // /*
+  //  * Allowed combinations:
+  //  * g g g g
+  //  * R g g g
+  //  * g R g g
+  //  * g g R g
+  //  * g g g R
+  //  *
+  //  * Legend: g means that wi = gi
+  //  *         R repesents one longer run
+  //  */
+  // if (g1 == w1 && g2 == w2 && w3 == g3 && w4 == g4 && w1 == w2 && w2 == w3 && w3 == w4)
+  // {// canonical g-quadruplex
+  //   score += g1 * sc.tetrad_bonus;
+  // }
+  // else if ((g2 == w2 && g1 >= g2 && g2 == g3 && g2 == g4))
+  // {// bulge in the first run
+  //   score += g2 * sc.tetrad_bonus - sc.bulge_penalty;
+  // }
+  // else if ((g1 == w1 && g1 <= g2 && g1 == g3 && g1 == g4) ||
+  //          (g1 == w1 && g1 == g2 && g1 <= g3 && g1 == g4) ||
+  //         (g1 == w1 && g1 == g2 && g1 == g3 && g1 <= g4))
+  // {// bulge in the second, third or fourth run
+  //   score += g1 * sc.tetrad_bonus - sc.bulge_penalty;
+  // }
+  // else if (w1 == w2 && w1 == w3 && w1 == w4)
+  // {// bulges with same width, check for single mismatch
+  //   if ((g2 == w2 && g1 == g2-1 && g2 == g3   && g2 == g4))
+  //   {// mismatch in first run
+  //     score += g2 * sc.tetrad_bonus - sc.mismatch_penalty;
+  //   }
+  //   else if ((g1 == w1 && g1-1 == g2 && g1 == g3   && g1 == g4) ||
+  //            (g1 == w1 && g1 == g2   && g1-1 == g3 && g1 == g4) ||
+  //            (g1 == w1 && g1 == g2   && g1 == g3   && g1-1 == g4))
+  //   {// mismatch in second, third or fourth run
+  //     score += g1 * sc.tetrad_bonus - sc.mismatch_penalty;
+  //   }
+  //   else
+  //     score = 0;
+  // }
+  // else {// runs with invalid content
+  //   score = 0;
+  // }
 }
 
 
@@ -411,8 +444,8 @@ inline void check_gc_skew(int &score, run_match m[])
  * @return True on success, false otherwise
  */
 inline bool find_run(
-    string::const_iterator s,
-    string::const_iterator e,
+    string::const_iterator start,
+    string::const_iterator end,
     run_match &m,
     const boost::regex &run_re_c,
     const opts_t &opts,
@@ -420,18 +453,24 @@ inline bool find_run(
 {
   static boost::smatch boost_m;
   bool status = false;
+  string::const_iterator s = start, e = end;
 
   if (flags.use_re) {
-    status = boost::regex_search(s, e, boost_m, run_re_c, boost::match_default);
+    status = boost::regex_search(start, end, boost_m, run_re_c, boost::match_default);
     if (status) {
       m.first = boost_m[0].first;
       m.second = boost_m[0].second;
     }
   } else {
     while (*s != 'G' && s < e) ++s;
+    // s = max(s - 1, start); // if it is possible to extend one mismatch left, do it.
+
     e = min(s + opts.run_max_len, e);
     --e; // <e> points to past-the-end character and as such should not be dereferenced
     while (*e != 'G' && e > s) --e;
+
+    // e = min(e + 1, end); // if it is possible to extend one mismatch right, do it.
+
     status = (s < e);
     if (status) {
       m.first = s;
@@ -553,7 +592,7 @@ void find_all_runs(
 
         score = 0;
         if (flags.use_default_scoring) {
-          score_run_lengths(score, m);
+          // score_run_lengths(score, m);
           score_run_content(score, m, sc);
           score_loop_lengths(score, m);
         }
@@ -649,6 +688,8 @@ void pqs_search(
 //' @param tetrad_bonus Score bonus for one complete G tetrade.
 //' @param bulge_penalty Penalization for a bulge in quadruplex run.
 //' @param mismatch_penalty Penalization for a mismatch in tetrad.
+//' @param max_bulges Maximal number of runs with bulge.
+//' @param max_mismatches Maximal number of runs with mismatch.
 //' @param run_re Regular expression specifying one run of quadruplex.
 //' @param custom_scoring_fn Custom quadruplex scoring function. It takes the
 //'   following 10 arguments: \code{subject} - Input DNAString object,
@@ -693,6 +734,8 @@ SEXP pqsfinder(
     int tetrad_bonus = 20,
     int bulge_penalty = 10,
     int mismatch_penalty = 10,
+    int max_bulges = 3,
+    int max_mismatches = 3,
     std::string run_re = "G{1,5}.{0,5}G{1,5}",
     SEXP custom_scoring_fn = R_NilValue,
     bool use_default_scoring = true,
@@ -732,6 +775,8 @@ SEXP pqsfinder(
   sc.tetrad_bonus = tetrad_bonus;
   sc.bulge_penalty = bulge_penalty;
   sc.mismatch_penalty = mismatch_penalty;
+  sc.max_bulges = max_bulges;
+  sc.max_mimatches = max_mismatches;
 
   results res(seq.length(), opts.min_score);
 
