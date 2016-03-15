@@ -480,19 +480,16 @@ inline bool find_run(
     }
   } else {
     while (*s != 'G' && s < end) ++s;
-    s = max(s - 1, start); // if it is possible to extend one mismatch left, do it.
-
     e = min(s + opts.run_max_len, end);
     --e; // <e> points to past-the-end character and as such should not be dereferenced
-    while (*e != 'G' && e > start) --e;
+    while (*e != 'G' && e > s) --e;
 
+    status = (s < e); // this means that the run contains at least two guanines.
     ++e; // correction to point on past-the-end character
-    e = min(e + 1, end); // if it is possible to extend one mismatch right, do it.
 
-    status = (s < e);
     if (status) {
-      m.first = s;
-      m.second = e;
+      m.first = max(s - 1, start); // if it is possible to extend one mismatch left, do it.
+      m.second = min(min(e + 1, s + opts.run_max_len), end); // if it is possible to extend one mismatch right, do it.
     }
   }
   return status;
