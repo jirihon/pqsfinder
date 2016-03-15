@@ -24,5 +24,7 @@ Imports:
     IRanges,
     S4Vectors,
     methods
+VignetteBuilder: knitr
+Suggests: BiocStyle, knitr
 LinkingTo: Rcpp, BH, flowCore
 RoxygenNote: 5.0.1
