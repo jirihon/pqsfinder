@@ -134,6 +134,7 @@ public:
   int mismatch_penalty;
   int max_bulges;
   int max_mimatches;
+  int max_defects;
   Function *custom_scoring_fn;
 
   scoring() {
@@ -299,7 +300,7 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
       return;
     }
   }
-  if (mismatches <= sc.max_mimatches && bulges <= sc.max_bulges)
+  if (mismatches <= sc.max_mimatches && bulges <= sc.max_bulges && mismatches + bulges <= sc.max_defects)
     score = w[pi] * sc.tetrad_bonus - mismatches * sc.mismatch_penalty - bulges * sc.bulge_penalty;
   else
     score = 0;
@@ -707,6 +708,7 @@ void pqs_search(
 //' @param mismatch_penalty Penalization for a mismatch in tetrad.
 //' @param max_bulges Maximal number of runs with bulge.
 //' @param max_mismatches Maximal number of runs with mismatch.
+//' @param max_defects Maximum number of defects in total (\code{max_bulges + max_mismatches}).
 //' @param run_re Regular expression specifying one run of quadruplex.
 //' @param custom_scoring_fn Custom quadruplex scoring function. It takes the
 //'   following 10 arguments: \code{subject} - Input DNAString object,
@@ -753,6 +755,7 @@ SEXP pqsfinder(
     int mismatch_penalty = 10,
     int max_bulges = 3,
     int max_mismatches = 3,
+    int max_defects = 3,
     std::string run_re = ".?G{1,5}.{0,5}G{1,5}.?",
     SEXP custom_scoring_fn = R_NilValue,
     bool use_default_scoring = true,
@@ -781,6 +784,8 @@ SEXP pqsfinder(
     stop("Maximum number of runs with bulges has to be from the range 0-3.");
   if (max_mismatches < 0 || max_mismatches > 3)
     stop("Maximum number of runs with mismatches has to be from the range 0-3.");
+  if (max_defects < 0 || max_defects > 3)
+    stop("Maximum number of runs with defects (bulge or mismatch) has to be from the range 0-3.");
 
   Function as_character("as.character");
   Function get_class("class");
@@ -818,6 +823,7 @@ SEXP pqsfinder(
   sc.mismatch_penalty = mismatch_penalty;
   sc.max_bulges = max_bulges;
   sc.max_mimatches = max_mismatches;
+  sc.max_defects = max_defects;
 
   results res(seq.length(), opts.min_score);
 
