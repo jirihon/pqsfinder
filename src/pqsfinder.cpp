@@ -8,7 +8,8 @@
 
 #include <Rcpp.h>
 #include <string>
-#include <string.h>
+#include <cstring>
+#include <cstdlib>
 #include <algorithm>
 #include <boost/regex.hpp>
 #ifdef _GLIBCXX_DEBUG
@@ -44,10 +45,25 @@ class cache {
 public:
   class entry {
   public:
-    vector<int> density;
+    int *density;
     int score;
     int len;
-    entry(int max_len) : density(max_len), score(0), len(0) {}
+    const int max_len;
+    entry(const int max_len) : score(0), len(0), max_len(max_len) {
+      this->density = (int *)calloc(this->max_len, sizeof(int));
+      if (this->density == NULL)
+        stop("Unable to allocate memory for cache density vector.");
+    }
+    entry(const entry &obj) : score(obj.score), len(obj.len), max_len(obj.max_len) {
+      this->density = (int *)malloc(this->max_len * sizeof(int));
+      if (this->density == NULL)
+        stop("Unable to allocate memory for cache density vector.");
+      memcpy(this->density, obj.density, this->max_len);
+    }
+    ~entry() {
+      if (this->density != NULL)
+        free(this->density);
+    }
   };
   typedef map<string, cache::entry>::iterator iterator;
   typedef map<string, cache::entry>::value_type value_type;
@@ -780,7 +796,7 @@ SEXP pqsfinder(
   flags.use_cache = true;
   flags.use_re = false;
   flags.use_prof = false;
-  flags.debug = false;
+  flags.debug = true;
   flags.verbose = verbose;
   flags.use_default_scoring = use_default_scoring;
 
