@@ -35,8 +35,8 @@ Identification of potential quadruplex-forming sequences (PQS) in DNA is perform
 As a simple example, let's find all PQS in a short example DNA sequence.
 
 ```{r basic_detection}
-seq <- DNAString("TTTTGGGCGGGAGGGTGGGTTTTTAAAAAAAGACCCCCCCCCAAAAATTTGGGAGGGTGGGTGTG")
-pqs <- pqsfinder(seq)
+seq <- DNAString("TTTTGGGCGGGAGGGTGGGTTTTTAACCCCCCCCAAAAATTTGGGAGGGTGGGTGTG")
+pqs <- pqsfinder(seq, max_len = 30)
 pqs
 ```
 
@@ -46,7 +46,7 @@ Detected PQS are returned in the form of a `PQSViews` class, which represents th
 data.frame(b = start(pqs), w = width(pqs), s = score(pqs))
 ```
 
-As `pqsfinder` function reports only the best non-overlapping PQS, it might be useful to
+As `pqsfinder` function reports only the best non-overlapping PQS,
 
 ```{r gviz, include=FALSE}
 library(Gviz)
@@ -54,14 +54,13 @@ library(Gviz)
 
 
 ```{r density, fig.height=1.5, fig.width=8.0}
-rle <- Rle(density(pqs))
-dtrack <- DataTrack(range = IRanges(start(rle), end(rle)), data = runValue(rle), name = "PQS density", chromosome = "chr1")
-
+dtrack <- DataTrack(range = IRanges(1:length(density(pqs)), width = 1),
+                    data = density(pqs), name = "PQS density", chromosome = "chr1")
 ss <- DNAStringSet(seq)
 names(ss) <- "chr1"
 strack <- SequenceTrack(ss, chromosome = "chr1", name = "sequence")
 
-plotTracks(c(dtrack, strack), type = "l")
+plotTracks(c(dtrack, strack), type = "l", from = 1, to = length(density(pqs)) + 1)
 ```
 
 
