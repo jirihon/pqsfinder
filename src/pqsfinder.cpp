@@ -796,7 +796,7 @@ SEXP pqsfinder(
   flags.use_cache = true;
   flags.use_re = false;
   flags.use_prof = false;
-  flags.debug = true;
+  flags.debug = false;
   flags.verbose = verbose;
   flags.use_default_scoring = use_default_scoring;
 
