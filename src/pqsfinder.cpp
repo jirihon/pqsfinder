@@ -267,7 +267,7 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
       pi = i;
   }
   if (pi < 0)
-  {// at least one run must be perfect
+  {// at least one run has to be perfect
     score = 0;
     return;
   }
@@ -742,6 +742,30 @@ SEXP pqsfinder(
     bool use_default_scoring = true,
     bool verbose = false)
 {
+  if (max_len < 1)
+    stop("Maximal length of PQS has to be positive value.");
+  if (min_score < 0)
+    stop("Minimal PQS score has to be non-negative value.");
+
+  if (run_min_len < 0)
+    stop("Minimal PQS run length has to be non-negative value.");
+  if (run_max_len < 0)
+    stop("Maximal PQS run length has to be non-negative value.");
+  if (run_min_len > run_max_len)
+    stop("Minimal PQS run length can't be greater than maximal PQS run length.");
+
+  if (loop_min_len < 0)
+    stop("Minimal PQS loop length has to be non-negative value.");
+  if (loop_max_len < 0)
+    stop("Maximal PQS loop length has to be non-negative value.");
+  if (loop_min_len > loop_max_len)
+    stop("Minimal PQS loop length can't be greater than maximal PQS loop length.");
+
+  if (max_bulges < 0 || max_bulges > 3)
+    stop("Maximum number of runs with bulges has to be from the range 0-3.");
+  if (max_mismatches < 0 || max_mismatches > 3)
+    stop("Maximum number of runs with mismatches has to be from the range 0-3.");
+
   Function as_character("as.character");
   Function get_class("class");
 
