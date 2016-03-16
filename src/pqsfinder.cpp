@@ -525,7 +525,7 @@ inline bool find_run(
 
     if (status) {
       m.first = s;//max(s - 1, start); // if it is possible to extend one mismatch left, do it.
-      m.second = min(min(e + 1, s + opts.run_max_len), end); // if it is possible to extend one mismatch right, do it.
+      m.second = e;//min(min(e + 1, s + opts.run_max_len), end); // if it is possible to extend one mismatch right, do it.
     }
   }
   return status;
@@ -793,7 +793,7 @@ SEXP pqsfinder(
     int max_bulges = 1,
     int max_mismatches = 3,
     int max_defects = 3,
-    std::string run_re = "G{1,5}.{0,5}G{1,5}.?",
+    std::string run_re = "G{1,5}.{0,5}G{1,5}",
     SEXP custom_scoring_fn = R_NilValue,
     bool use_default_scoring = true,
     bool verbose = false)
@@ -842,7 +842,7 @@ SEXP pqsfinder(
   flags.verbose = verbose;
   flags.use_default_scoring = use_default_scoring;
 
-  if (run_re != "G{1,5}.{0,5}G{1,5}.?")
+  if (run_re != "G{1,5}.{0,5}G{1,5}")
     // User specified its own regexp, force to use regexp engine
     flags.use_re = true;
 

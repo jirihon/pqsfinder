@@ -8,7 +8,7 @@ pqsfinder(subject, max_len = 50L, min_score = 0L, run_min_len = 3L,
   run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L,
   tetrad_bonus = 20L, bulge_penalty = 10L, mismatch_penalty = 10L,
   max_bulges = 1L, max_mismatches = 3L, max_defects = 3L,
-  run_re = "G{1,5}.{0,5}G{1,5}.?", custom_scoring_fn = NULL,
+  run_re = "G{1,5}.{0,5}G{1,5}", custom_scoring_fn = NULL,
   use_default_scoring = TRUE, verbose = FALSE)
 }
 \arguments{
