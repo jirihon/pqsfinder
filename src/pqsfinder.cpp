@@ -503,7 +503,7 @@ inline bool find_run(
   static boost::smatch boost_m;
   bool status = false;
 
-  string::const_iterator s = start, e = end;
+  string::const_iterator s = start, e;
 
   if (flags.use_re) {
     status = boost::regex_search(start, end, boost_m, run_re_c, boost::match_default);
@@ -517,8 +517,11 @@ inline bool find_run(
     --e; // <e> points to past-the-end character and as such should not be dereferenced
     while (*e != 'G' && e > s) --e;
 
-    status = (s < e && e - s + 1 >= opts.run_min_len); // this means that the run contains at least two guanines.
+    status = (s < e); // this means that the run contains at least two guanines.
     ++e; // correction to point on past-the-end character
+    // if ((e - s) + 1 < opts.run_min_len)
+    // // definitely too short to be run
+    //   status = false;
 
     if (status) {
       m.first = s;//max(s - 1, start); // if it is possible to extend one mismatch left, do it.
@@ -556,7 +559,7 @@ void find_all_runs(
     int &pqs_cnt,
     results &res)
 {
-  string::const_iterator s, e;
+  string::const_iterator s, e, min_e;
   int score;
   cache::entry *cache_hit;
 
@@ -598,7 +601,9 @@ void find_all_runs(
       for (int k = 0; k < opts.max_len; ++k)
         pqs_cache.density[k] = 0;
     }
-    for (e = end; s < e && find_run(s, e, m[i], run_re_c, opts, flags); e--)
+    min_e = s + opts.run_min_len;
+
+    for (e = end; e >= min_e && find_run(s, e, m[i], run_re_c, opts, flags); e--)
     {
       if (m[i].length() < opts.run_min_len)
         break; // skip too short G-run, try next position
