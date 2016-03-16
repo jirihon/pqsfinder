@@ -519,9 +519,9 @@ inline bool find_run(
 
     status = (s < e); // this means that the run contains at least two guanines.
     ++e; // correction to point on past-the-end character
-    // if ((e - s) + 1 < opts.run_min_len)
-    // // definitely too short to be run
-    //   status = false;
+    if ((e - s) + 1 < opts.run_min_len)
+    // definitely too short to be run
+      status = false;
 
     if (status) {
       m.first = s;//max(s - 1, start); // if it is possible to extend one mismatch left, do it.
