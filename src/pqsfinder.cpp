@@ -67,7 +67,7 @@ public:
   };
   typedef map<string, cache::entry>::iterator iterator;
   typedef map<string, cache::entry>::value_type value_type;
-  static const int use_treshold = 1000;
+  static const int use_treshold = 10000;
 
   map<string, cache::entry> table;
   int max_len;
@@ -277,8 +277,43 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
   int w[RUN_CNT], g[RUN_CNT];
   int pi = -1, mismatches = 0, bulges = 0, perfects = 0;
 
+  // int l1, l2, l3;
+  // l1 = m[1].first - m[0].second;
+  // l2 = m[2].first - m[1].second;
+  // l3 = m[3].first - m[2].second;
+  //
+  // if ((l1 > 8 && l2 > 8) ||
+  //     (l1 > 8 && l3 > 8) ||
+  //     (l2 > 8 && l3 > 8)) {
+  //   score = 0;
+  //   return;
+  // }
+
+  w[0] = m[0].length();
+  w[1] = m[1].length();
+  w[2] = m[2].length();
+  w[3] = m[3].length();
+
+  /*
+   * Allowed length combinations:
+   * r r r r
+   * R r r r
+   * r R r r
+   * r r R r
+   * r r r R
+   */
+  if (sc.max_bulges == 1 && !(
+       (w[0] == w[1] && w[0] == w[2] && w[0] == w[3]) ||
+       (w[0] >  w[1] && w[1] == w[2] && w[1] == w[3]) ||
+       (w[0] <  w[1] && w[0] == w[2] && w[0] == w[3]) ||
+       (w[0] == w[1] && w[1] <  w[2] && w[0] == w[3]) ||
+       (w[0] == w[1] && w[0] == w[2] && w[0] <  w[3])
+      )) {
+    score = 0;
+    return;
+  }
+
   for (int i = 0; i < RUN_CNT; ++i) {
-    w[i] = m[i].length();
     g[i] = count_g_num(m[i]);
     if (g[i] == w[i] && (pi == -1 || w[i] < w[pi]))
       pi = i;
@@ -305,9 +340,6 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
   else
     score = 0;
 
-  // if (score == 0)
-  //   return;
-  //
   // int g1,g2,g3,g4,w1,w2,w3,w4;
   // w1 = m[0].length();
   // w2 = m[1].length();
@@ -470,6 +502,7 @@ inline bool find_run(
 {
   static boost::smatch boost_m;
   bool status = false;
+
   string::const_iterator s = start, e = end;
 
   if (flags.use_re) {
@@ -484,11 +517,11 @@ inline bool find_run(
     --e; // <e> points to past-the-end character and as such should not be dereferenced
     while (*e != 'G' && e > s) --e;
 
-    status = (s < e); // this means that the run contains at least two guanines.
+    status = (s < e && e - s + 1 >= opts.run_min_len); // this means that the run contains at least two guanines.
     ++e; // correction to point on past-the-end character
 
     if (status) {
-      m.first = max(s - 1, start); // if it is possible to extend one mismatch left, do it.
+      m.first = s;//max(s - 1, start); // if it is possible to extend one mismatch left, do it.
       m.second = min(min(e + 1, s + opts.run_max_len), end); // if it is possible to extend one mismatch right, do it.
     }
   }
@@ -575,7 +608,7 @@ void find_all_runs(
       e = m[i].second;
 
       if (m[i].length() > opts.run_max_len) {
-        e = s + opts.run_max_len; // skip too long G-runs
+        e = s + opts.run_max_len; // skip too long G-runs, can be improved in <find_run>
         continue;
       }
       if (i > 0 && s - m[i-1].second > opts.loop_max_len)
@@ -679,6 +712,8 @@ void pqs_search(
   string::const_iterator pqs_start;
   int pqs_cnt = 0;
 
+  Rcout << "Searching...\n";
+
   // Global sequence length is the only limit for the first G-run
   find_all_runs(subject, 0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc,
                 seq.begin(), seq.length(), pqs_start, pqs_best, ctable, pqs_cache, pqs_cnt, res);
@@ -741,7 +776,7 @@ void pqs_search(
 // [[Rcpp::export]]
 SEXP pqsfinder(
     SEXP subject,
-    int max_len = 70,
+    int max_len = 50,
     int min_score = 0,
     int run_min_len = 3,
     int run_max_len = 11,
@@ -750,7 +785,7 @@ SEXP pqsfinder(
     int tetrad_bonus = 20,
     int bulge_penalty = 10,
     int mismatch_penalty = 10,
-    int max_bulges = 3,
+    int max_bulges = 1,
     int max_mismatches = 3,
     int max_defects = 3,
     std::string run_re = ".?G{1,5}.{0,5}G{1,5}.?",
