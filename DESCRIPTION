@@ -25,6 +25,6 @@ Imports:
     S4Vectors,
     methods
 VignetteBuilder: knitr
-Suggests: BiocStyle, knitr
+Suggests: BiocStyle, knitr, Gviz, rtracklayer
 LinkingTo: Rcpp, BH, flowCore
 RoxygenNote: 5.0.1
