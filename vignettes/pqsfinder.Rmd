@@ -58,9 +58,9 @@ The following example than shows, how such density vector could be simply visual
 library(Gviz)
 ss <- DNAStringSet(seq)
 names(ss) <- "chr1"
+dtrack <- DataTrack(start = 1:length(density(pqs)*2), width = 2,
+                    data = density(pqs), chromosome = "chr1", genome = "", name = "density")
 strack <- SequenceTrack(ss, chromosome = "chr1", name = "sequence")
-dtrack <- DataTrack(range = IRanges(1:length(density(pqs)*2), width = 2),
-                    data = density(pqs), name = "PQS density", chromosome = "chr1")
 suppressWarnings(plotTracks(c(dtrack, strack), type = "h"))
 ```
 
@@ -149,22 +149,22 @@ Please, note that all attributes of detection such as start position, end positi
 
 # A real world example
 
-```{r}
+```{r, eval=FALSE}
 library(BSgenome.Hsapiens.UCSC.hg19)
-btrack <- BiomartGeneRegionTrack(genome = "hg19",  symbol = "AHNAK",  name = "AHNAK")
-extend <- 5000
+gnm <- "hg19"
+gene <- "AHNAK"
+btrack <- BiomartGeneRegionTrack(genome = gnm,  symbol = gene,  name = gene)
+extend <- 1000
 seq_start <- min(start(btrack)) - extend
 seq_end <- max(end(btrack)) + extend
 chr <- chromosome(btrack)
 seq <- BSgenome.Hsapiens.UCSC.hg19[[chr]][seq_start:seq_end]
-pqs <- pqsfinder(seq, min_score = 20)
-
-atrack <- AnnotationTrack(start = start(pqs), end = end(pqs), chromosome = chr, genome = "hg19", name = "PQS")
+pqs <- pqsfinder(seq, min_score = 40)
 
 strack <- DataTrack(start = start(pqs)+seq_start, end = end(pqs)+seq_start,
-                    data = score(pqs), name = "PQS score", chromosome = chr, genome = "hg19")
+                    data = score(pqs), chromosome = chr, genome = gnm, name = "pqs score")
 dtrack <- DataTrack(start = (seq_start):(seq_start+length(density(pqs))-1), width = 1,
-                    data = density(pqs), name = "PQS density", chromosome = chr, genome = "hg19")
+                    data = density(pqs), chromosome = chr, genome = gnm, name = "pqs density")
 
 plotTracks(c(btrack, strack, dtrack), type = "h")
 ```
