@@ -1,0 +1,9 @@
+CHANGES IN VERSION 1.0.0
+------------------------
+
+    o Novel algorithm for identification of potential intramolecular
+      G-quadruplex (G4) patterns in DNA sequence.
+    o Supports multiple defects in G-runs like bulges or mismatches.
+    o Provides the most accurate results currently available.
+    o Highly customizable to detect even novel G4 types that might be
+      discovered in the future.
