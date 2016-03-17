@@ -20,7 +20,7 @@
 #' @param bulge_penalty Penalization for a bulge in quadruplex run.
 #' @param mismatch_penalty Penalization for a mismatch in tetrad.
 #' @param loop_mean_factor Penalization factor of loop lengths mean.
-#' @param loop_std_factor Penalization factor of loop lengths standard deviation.
+#' @param loop_sd_factor Penalization factor of loop lengths standard deviation.
 #' @param run_re Regular expression specifying one run of quadruplex.
 #' @param custom_scoring_fn Custom quadruplex scoring function. It takes the
 #'   following 10 arguments: \code{subject} - Input DNAString object,

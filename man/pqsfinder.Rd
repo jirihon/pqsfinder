@@ -40,6 +40,8 @@ pqsfinder(subject, max_len = 50L, min_score = 0L, run_min_len = 3L,
 
 \item{loop_mean_factor}{Penalization factor of loop lengths mean.}
 
+\item{loop_sd_factor}{Penalization factor of loop lengths standard deviation.}
+
 \item{run_re}{Regular expression specifying one run of quadruplex.}
 
 \item{custom_scoring_fn}{Custom quadruplex scoring function. It takes the
@@ -70,8 +72,6 @@ format: \code{start cnt pqs_sequence score}, where \code{start} is the PQS
 starting position, \code{pqs_sequence} shows the PQS sequence structure
 with each run surrounded by square brackets and \code{score} is the score
 assigned to the particular PQS by all applied scoring functions.}
-
-\item{loop_std_factor}{Penalization factor of loop lengths standard deviation.}
 }
 \value{
 \code{\link{PQSViews}} object
