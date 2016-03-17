@@ -266,10 +266,10 @@ setAs("PQSViews", "DNAStringSet", function(from)
 setAs("PQSViews", "GRanges", function(from)
 {
   seqlen <- length(subject(from))
-  names(seqlen) <- "chr"
+  names(seqlen) <- "chr1"
 
   GRanges(
-    "chr",
+    "chr1",
     IRanges(start(from), end(from)),
     "+",
     score = score(from),
