@@ -64,6 +64,7 @@ dtrack <- DataTrack(range = IRanges(1:length(density(pqs)*2), width = 2),
 suppressWarnings(plotTracks(c(dtrack, strack), type = "h"))
 ```
 
+<p style="text-align:center">**Figure 1:** Visualization of density vector.</p>
 
 ## Modifying basic algorithm options
 
@@ -91,12 +92,60 @@ The more you narrow these options in terms of shorter PQS length, narrower run o
 pqsfinder(seq, max_defects = 0)
 ```
 
-
 # Exporting results
 
-## GRanges conversion
+As mentioned above, the results of detection are stored in the `PQSViews` object. Because the `PQSViews` class is only an extension of the `XStringViews` class, all operations applied to the `XStringViews` object can also be applied to the `PQSViews` object as well.
 
-## DNAStringSet conversion
+Additionaly, `PQSViews` class supports a conversion mechanism to create `GRanges` objects. Thus, all detected PQS can be easily transformed into elements of a `GRanges` object and saved as a GFF3 file, for example.
+
+## GRanges conversion and export to GFF3
+
+In this example, the output of the `pqsfinder` function will be stored in a `GRanges` object and further exported as a GFF3 file. At first, let's do the conversion using the following command:
+
+```{r granges_conversion}
+gr <- as(pqs, "GRanges")
+gr
+```
+
+Please note that the chromosome name is arbitrarily set to `chr1`, but it can be freely changed to any other value afterwards. In the next step the resulting `GRanges` object is exported as a GFF3 file. 
+
+```{r granges_export}
+library(rtracklayer)
+export(gr, "test.gff", version = "3")
+```
+
+Please note, that it is necessary to load the `rtracklayer` library before running the `export` command. The contents of the resulting GFF3 file are:
+
+```{r gff_file}
+text <- readLines("test.gff", n = 10)
+cat(strwrap(text, width = 80, exdent = 3), sep = "\n")
+```
+
+Another possibility of utilizing the results of detection is to transform the `PQSViews` object into a `DNAStringSet` object, which represents another commonly used class of the `Biostrings` package. PQS stored inside `DNAStringSet` can be exported into a FASTA file, for example.
+
+## DNAStringSet conversion and export to FASTA
+
+In this example, the output of the `pqsfinder` function will be stored into a `DNAStringSet` object and further exported as a FASTA file. At first, let's do the conversion using the following command:
+
+```{r dnastringset_conversion}
+dss <- as(pqs, "DNAStringSet")
+dss
+```
+
+In the next step, the `DNAStringSet` object is exported as a FASTA file.
+
+```{r dnastringset_export}
+writeXStringSet(dss, file = "test.fa", format = "fasta")
+```
+
+The contents of the resulting FASTA file are:
+
+```{r fasta_file}
+text <- readLines("test.fa", n = 10)
+cat(text, sep = "\n")
+```
+
+Please, note that all attributes of detection such as start position, end position and score value are stored as a `name` parameter (inside the `DNAStringSet`), and thus, they are also shown in the header line of the FASTA format (the line with the initial `>` symbol).
 
 # A real world example
 
@@ -114,10 +163,12 @@ Option name        | Description
 
 ## Custom scoring function
 
-More complicated way to influence the algorithm output is to implement custom scoring function and pass it throught the `custom_scoring_fn` options. The function should take the following 10 arguments:
+More complicated way to influence the algorithm output is to implement custom scoring function and pass it throught the `custom_scoring_fn` options. Before you start experimenting with this feature, please consider the fact that custom scoring function can **influence the overall algorithm performance very negatively**, particularly on long sequences. The best use case of this feature is rapid prototyping of novel scoring techniques, which can be later implemented efficiently, for example in the next version of this package. Thus, if you have any suggestions how to  further improve the default scoring system (DSS), please let us know, we would highly appreciate that.
+
+Basically, the custom scoring function should take the following 10 arguments:
 
 * `subject` - input DNAString object,
-* `score` - positive PQS score assigned by default internal scoring system, if enabled,
+* `score` - positive PQS score assigned by DSS, if enabled,
 * `start` - PQS start position,
 * `width` - PQS width,
 * `loop_1` - loop #1 start position,
@@ -127,210 +178,42 @@ More complicated way to influence the algorithm output is to implement custom sc
 * `loop_3` - loop #3 start position,
 * `run_4` - run #4 start position.
 
-Return value of the function has to be new score represented as a single integer value. Please note that if `use_default_scoring` is enabled, the custom scoring function is evaluated **after** the default scoring system (DSS) but **only if** the DSS resulted in positive score (for performance reasons). On the other hand, when `use_default_scoring` is disabled, custom scoring function is evaluated on every PQS.
+Return value of the function has to be new score represented as a single integer value. Please note that if `use_default_scoring` is enabled, the custom scoring function is evaluated **after** the DSS but **only if** the DSS resulted in positive score (for performance reasons). On the other hand, when `use_default_scoring` is disabled, custom scoring function is evaluated on every PQS.
 
-**Example:** Imagine you would like to take into consideration scoring a metric developed by XXXX in G4Hunter. It can be easily done by defining your custom scoring function:
+**Example:** Imagine you would like to assign a particular type of quadruplex more favourable score. For example G-quadruplexes with all loops containing just a single cytosine tend to be more stable than similar ones with different nucleotide at the same place. This can be easily reflected by the following custom scoring function: 
 
-```{r g4hunter}
+```{r custom_scoring_fn}
+my_fn <- function(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4) {
+  l1 <- run_2 - loop_1
+  l2 <- run_3 - loop_2
+  l3 <- run_4 - loop_3
+  if (l1 == l2 && l1 == l3 && subject[loop_1] == DNAString("C") &&
+      subject[loop_1] == subject[loop_2] && subject[loop_1] == subject[loop_3]) {
+    score <- score + 20
+  }
+  return(score)
+}
+```
 
+Without the custom scoring function two PQS found in an example sequence will have the same score.
+
+```{r no_custom_scoring, results='hold'}
+seq <- DNAString("GGGCGGGCGGGCGGGAAAAAAAAAAAAAGGGAGGGAGGGAGGG")
+pqsfinder(seq)
+```
+
+However, if the custom scoring function presented above is applied, the two PQS are clearly distinguishable:
+
+```{r custom_scoring, results='hold'}
+pqsfinder(seq, custom_scoring_fn = my_fn)
 ```
 
 
-## Disable default internal scoring
+## Complete replacement of default scoring system
 
-Surely there will be cases when it is undesirable to have the DSS enabled.
+There might be use cases when it is undesirable to have the default scoring system (DSS) enabled. 
 
 Basic interstrand quadruplexes
 
-# Prerequisites
-
-In order to build .Rmd documents the `r CRANpkg("rmarkdown")` package is necessary, which relies on [pandoc](http://johnmacfarlane.net/pandoc/) to compile the final output document. If you are working within a recent version of RStudio then both rmarkdown and pandoc should be already installed.
-
-If you are missing the `r CRANpkg("rmarkdown")` package then you can install it from CRAN using
-
-```{r rmarkdown, eval=FALSE}
-install.packages("rmarkdown")
-```
-
-In this case a recent version of [pandoc](http://johnmacfarlane.net/pandoc/) (>= 1.12.3) is also required. See the [pandoc installation instructions](https://github.com/rstudio/rmarkdown/blob/master/PANDOC.md) for details on installing pandoc for your platform.
-
-
-# Authoring R markdown HTML package vignettes
-
-To enable the _Bioconductor_ style in your markdown (`.Rmd`) vignettes you need to:
-
-- Edit to the `DESCRIPTION` file by adding
-
-        VignetteBuilder: knitr
-        Suggests: BiocStyle, knitr, rmarkdown
-
-- Specify `BiocStyle::html_document` as the output format and add vignette metadata in the document header:
-
-        ---
-        title: "Vignette Title"
-        author: "Vignette Author"
-        output: 
-          BiocStyle::html_document
-        vignette: >
-          %\VignetteIndexEntry{Vignette Title}
-          %\VignetteEngine{knitr::rmarkdown}
-          %\VignetteEncoding{UTF-8}  
-        ---
-
-The `vignette` section is required in order to instruct R how to build the vignette. Note that the `\VignetteIndexEntry` should match the `title` of your vignette.
-  
-It is also possible to specify additional details such as:
-
-- document compilation `date` inserted using the helper function `doc_date`
-- `package` version specification added by `pkg_ver`
-- vignette `abstract`
-    
-as in the following example. Note the inclusion of an additional style sheet `custom.css` by specifying it in the document header.
-
-```{r code, echo = FALSE}
-## The following redefinitions are only for printing the verbatim header below
-doc_date = function() "`r doc_date()`"
-pkg_ver = function(name) sprintf("`r pkg_ver('%s')`", name)
-```
-
-    ---
-    title: "Vignette Title"
-    author: "Vignette Author"
-    date: "`r doc_date()`"
-    package: "`r pkg_ver('BiocStyle')`"
-    abstract: >
-      Vignette Abstract
-    vignette: >
-      %\VignetteIndexEntry{Vignette Title}
-      %\VignetteEngine{knitr::rmarkdown}
-      %\VignetteEncoding{UTF-8}
-    output: 
-      BiocStyle::html_document:
-        css: custom.css
-    ---
-
-
-## Use with R markdown v1
-
-Apart from the default markdown engine implemented in the `r CRANpkg('rmarkdown')` package,
-it is also possible to compile Bioconductor documents using the older markdown v1 engine 
-from the package `r CRANpkg('markdown')`. There are some
-differences in setup and the resulting output between these two
-engines. 
-
-To use the `r CRANpkg('markdown')` vignette builder engine:
-
-- Add the following to the `DESCRIPTION` file
-
-        VignetteBuilder: knitr
-        Suggests: BiocStyle, knitr
-        
-- Specify the vignette engine in the `.Rmd` files (inside HTML
-  comments)
-
-        <!--
-        %% \VignetteEngine{knitr::knitr}
-        -->
-
-- Add the following code chunk at the beginning of your `.Rmd`
-  vignettes
-
-        ```{r style, echo = FALSE, results = 'asis'}`r ''`
-        BiocStyle::markdown()
-        ```
-
-The way of attaching CSS files when using
-`r CRANpkg('markdown')` differs from how this done with `r CRANpkg('rmarkdown')`.
-In the former case additional style sheets can be
-used by providing them to the `BiocStyle::markdown` function.
-To include `custom.css` file use
-
-    ```{r style, echo = FALSE, results = 'asis'}`r ''`
-    BiocStyle::markdown(css.files = c('custom.css'))
-    ```
-
-
-# Style macros
-
-```{r macro, echo=FALSE}
-macro <- function(name, pkg, description)
-    sprintf('`` `r %s("%s")` `` %s %s', name, pkg,
-            description, do.call(name, list(pkg)))
-```
-
-`r Biocpkg("BiocStyle")` introduces the following macros useful when
-referring to _R_ packages:
-
-* `r macro("Biocpkg", "IRanges", "for _Bioconductor_ software, annotation and experiment data packages,
-  including a link to the release landing page or if the package is only in devel, to the devel landing page,")`.
-
-* `r macro("CRANpkg", "data.table", "for _R_ packages available on
-  CRAN, including a link to the FHCRC CRAN mirror landing page,")`.
-
-* `r macro("Githubpkg", "rstudio/rmarkdown", "for _R_ packages
-  available on GitHub, including a link to the package repository,")`.
-
-* `r macro("Rpackage", "MyPkg", "for _R_ packages that are _not_
-  available on _Bioconductor_, CRAN or GitHub;")`.
-
-
-# Additional formatting features
-
-Compared to the default markdown appearance the formatting differences
-include:
-
-* Images and tables appear centered, e.g.
-
-    ```{r figure, fig.width=4.0, fig.height=4.4}
-    v = seq(0, 60i, length = 1000)
-    plot(abs(v)*exp(v), type = "l", col = "Royalblue")
-    ``` 
-                
-* Tables are displayed with striped rows:
-    
-    ```markdown
-    Fruit   | Price
-    ------- | -----
-    bananas | 1.2
-    apples  | 1.0
-    oranges | 2.5
-    ```
-        
-    produces
-
-    Fruit   | Price
-    ------- | -----
-    bananas | 1.2
-    apples  | 1.0
-    oranges | 2.5
-
-* Paragraph text is justified
-
-* External links open in new browser tab/window
-
-Math symbols can be included in markdown documents. You can write math
-expressions the same way you would in `Latex`, except some differences
-in escaping them.
-
-- Inline: For inline formulas use `$P(x) = \frac{1}{2}$` or
-  `\(P(x) = \frac{1}{2}\)`, which both render as $P(x) = \frac{1}{2}$.
-
-- Standalone: Math can be displayed in a separate line by writing
-  `$$P(x) = \frac{1}{2}$$` or `\[P(x) = \frac{1}{2}.\]`, which both
-  result in $$P(x) = \frac{1}{2}.$$
-
-
-# Session info
-
-Here is the output of `sessionInfo()` on the system on which this
-document was compiled:
-
-```{r sessionInfo, echo=FALSE}
-sessionInfo()
-```
-
-
-[R]: http://r-project.org
-[RStudio]: http://www.rstudio.com/
 [Bioconductor]: http://www.bioconductor.org/
 
