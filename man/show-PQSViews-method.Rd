@@ -8,7 +8,10 @@
 \S4method{show}{PQSViews}(object)
 }
 \arguments{
-\item{object}{PQSViews object}
+\item{object}{PQSViews object.}
+}
+\value{
+PQSViews object printed.
 }
 \description{
 Show method

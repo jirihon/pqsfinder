@@ -8,7 +8,10 @@
 \S4method{as.character}{PQSViews}(x)
 }
 \arguments{
-\item{x}{PQSViews object}
+\item{x}{PQSViews object.}
+}
+\value{
+Character vector representing PQS.
 }
 \description{
 Coerce to character vector

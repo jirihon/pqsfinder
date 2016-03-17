@@ -9,9 +9,9 @@
 
 #' An S4 class to represent potential quadruplex forming sequences.
 #'
-#' Represents potential quadruplex forming sequences found by \code{\link{pqsfinder}}
-#' function. This is a subclass of \code{\link{XStringViews-class}} class and adds
-#' one more slot.
+#' Represents potential quadruplex forming sequences found by
+#' \code{\link{pqsfinder}} function. This is a subclass of
+#' \code{\link{XStringViews-class}} class and adds one more slot.
 #'
 #' @slot density Numbers of PQS (potential quadruplex forming sequences)
 #'               overlapping at each position in input sequence.
@@ -69,8 +69,8 @@ setMethod("score", "PQSViews", function(x) mcols(x)$score)
 
 #' Get density vector
 #'
-#' Desity vector represents numbers of PQS (potential quadruplex forming sequences)
-#' overlapping at each position in input sequence.
+#' Desity vector represents numbers of PQS (potential quadruplex forming
+#' sequences) overlapping at each position in input sequence.
 #'
 #' @param x PQSViews object
 #' @return Density vector
@@ -218,7 +218,8 @@ setMethod("density", "PQSViews", function(x) x@density)
 
 #' Show method
 #'
-#' @param object PQSViews object
+#' @param object PQSViews object.
+#' @return PQSViews object printed.
 #'
 setMethod("show", "PQSViews", function(object)
 {
@@ -227,7 +228,7 @@ setMethod("show", "PQSViews", function(object)
 
   cat("  PQS views on a ", lsub, "-letter ", class(subject),
       " subject", sep="")
-  cat("\nsubject:", .get_snippet(subject, 1, lsub, getOption("width") - 9, "+"))
+  cat("\nsubject:", .get_snippet(subject, 1, lsub, getOption("width")-9, "+"))
   cat("\nquadruplexes:")
 
   if (length(object) == 0) {
@@ -280,7 +281,8 @@ setAs("PQSViews", "GRanges", function(from)
 
 #' Coerce to character vector
 #'
-#' @param x PQSViews object
+#' @param x PQSViews object.
+#' @return Character vector representing PQS.
 #'
 setMethod("as.character", "PQSViews", function(x)
 {

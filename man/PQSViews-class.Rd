@@ -6,9 +6,9 @@
 \alias{PQSViews-class}
 \title{An S4 class to represent potential quadruplex forming sequences.}
 \description{
-Represents potential quadruplex forming sequences found by \code{\link{pqsfinder}}
-function. This is a subclass of \code{\link{XStringViews-class}} class and adds
-one more slot.
+Represents potential quadruplex forming sequences found by
+\code{\link{pqsfinder}} function. This is a subclass of
+\code{\link{XStringViews-class}} class and adds one more slot.
 }
 \section{Slots}{
 

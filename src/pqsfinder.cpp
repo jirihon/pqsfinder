@@ -437,13 +437,19 @@ inline void score_loop_lengths(int &score, const run_match m[], const scoring &s
  * @param m Quadruples runs
  * @param sc Scoring table
  * @example user function in R
-   my_fn <- function(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4) {
+   my_fn <- function(
+      subject, score, start, width, loop_1, run_2, loop_2,
+      run_3, loop_3, run_4)
+   {
       len <- loop_1 - start
-      if (len == loop_2 - run_2 && len == loop_3 - run_3 && len == start + width - run_4)
+      if (len == loop_2 - run_2 && len == loop_3 - run_3 &&
+          len == start + width - run_4)
       return(200)
    }
  */
-inline void check_custom_scoring_fn(int &score, const run_match m[], const scoring &sc, SEXP subject, const string::const_iterator ref)
+inline void check_custom_scoring_fn(
+    int &score, const run_match m[], const scoring &sc, SEXP subject,
+    const string::const_iterator ref)
 {
   int start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4;
 
@@ -456,7 +462,9 @@ inline void check_custom_scoring_fn(int &score, const run_match m[], const scori
   loop_3 = m[2].second - ref + 1;
   run_4 = m[3].first - ref + 1;
 
-  score = as<int>((*sc.custom_scoring_fn)(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4));
+  score = as<int>((*sc.custom_scoring_fn)(
+    subject, score, start, width,
+    loop_1, run_2, loop_2, run_3, loop_3, run_4));
 }
 
 

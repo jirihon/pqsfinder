@@ -5,5 +5,6 @@ import(GenomicRanges)
 import(Biostrings)
 import(IRanges)
 import(S4Vectors)
+import(methods)
 
-useDynLib(pqsfinder)
+useDynLib(pqsfinder, pqsfinder_pqsfinder)

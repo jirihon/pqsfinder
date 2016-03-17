@@ -14,7 +14,7 @@
 Density vector
 }
 \description{
-Desity vector represents numbers of PQS (potential quadruplex forming sequences)
-overlapping at each position in input sequence.
+Desity vector represents numbers of PQS (potential quadruplex forming
+sequences) overlapping at each position in input sequence.
 }
 
