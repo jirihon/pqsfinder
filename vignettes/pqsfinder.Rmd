@@ -211,7 +211,14 @@ pqsfinder(seq, custom_scoring_fn = my_fn)
 
 ## Complete replacement of default scoring system
 
-There might be use cases when it is undesirable to have the default scoring system (DSS) enabled. 
+There might be use cases when it is undesirable to have the default scoring system (DSS) enabled. In this example it will be shown how to change the detection algorithm behavior to find quite different type sequence motif - an interstrand G-quadruplexes (isG4). Unlike standard intramolecular G-quadruplex, isG4 can be defined by interleaving runs of guanines and cytosins respectively. Its canonical form can be described by a regular expression G<sub>n</sub>N<sub>a</sub>C<sub>n</sub>N<sub>b</sub>G<sub>n</sub>N<sub>c</sub>C<sub>n</sub>.
+
+To detect isG4 by `pqsfinder` function, it is essential to change three options. At first, disable the DSS by setting `use_default_scoring` to `FALSE`. Secondly, specify custom regular expression defining one run of the quadruplex by setting `run_re` to `G{3,6}|C{3,6}`. The last step is to define custom scoring function validating each PQS:
+
+```{r isg4_scoring_function}
+
+```
+
 
 Basic interstrand quadruplexes
 
