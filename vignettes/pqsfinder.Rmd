@@ -149,6 +149,27 @@ Please, note that all attributes of detection such as start position, end positi
 
 # A real world example
 
+```{r}
+library(BSgenome.Hsapiens.UCSC.hg19)
+btrack <- BiomartGeneRegionTrack(genome = "hg19",  symbol = "AHNAK",  name = "AHNAK")
+extend <- 5000
+seq_start <- min(start(btrack)) - extend
+seq_end <- max(end(btrack)) + extend
+chr <- chromosome(btrack)
+seq <- BSgenome.Hsapiens.UCSC.hg19[[chr]][seq_start:seq_end]
+pqs <- pqsfinder(seq, min_score = 20)
+
+atrack <- AnnotationTrack(start = start(pqs), end = end(pqs), chromosome = chr, genome = "hg19", name = "PQS")
+
+strack <- DataTrack(start = start(pqs)+seq_start, end = end(pqs)+seq_start,
+                    data = score(pqs), name = "PQS score", chromosome = chr, genome = "hg19")
+dtrack <- DataTrack(start = (seq_start):(seq_start+length(density(pqs))-1), width = 1,
+                    data = density(pqs), name = "PQS density", chromosome = chr, genome = "hg19")
+
+plotTracks(c(btrack, strack, dtrack), type = "h")
+```
+
+
 # Customizing detection algorithm
 
 The underlying detection algorithm is almost fully customizable, it can even be setup to find fundamentally different types of G-quadruplexes. The very fist option, how to change the detection behavior is to tune scoring bonuses, penalizations and factors. Supported options are summarized in the table bellow:
