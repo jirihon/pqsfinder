@@ -132,6 +132,8 @@ public:
   int tetrad_bonus;
   int bulge_penalty;
   int mismatch_penalty;
+  int loop_mean_factor;
+  int loop_sd_factor;
   int max_bulges;
   int max_mimatches;
   int max_defects;
@@ -405,7 +407,7 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
  * @param score Quadruplex score
  * @param m Quadruples runs
  */
-inline void score_loop_lengths(int &score, const run_match m[])
+inline void score_loop_lengths(int &score, const run_match m[], const scoring &sc)
 {
   if (score == 0)
     return;
@@ -422,9 +424,9 @@ inline void score_loop_lengths(int &score, const run_match m[])
   d2 = (l2 - mean)*(l2 - mean);
   d3 = (l3 - mean)*(l3 - mean);
 
-  int s = sqrt((d1 + d2 + d3)/3);
+  int sd = sqrt((d1 + d2 + d3)/2.0);
 
-  score = max(score - mean - s, 0);
+  score = max(score - sc.loop_mean_factor * mean - sc.loop_sd_factor * sd, 0);
 }
 
 
@@ -647,7 +649,7 @@ void find_all_runs(
         if (flags.use_default_scoring) {
           // score_run_lengths(score, m);
           score_run_content(score, m, sc);
-          score_loop_lengths(score, m);
+          score_loop_lengths(score, m, sc);
         }
         if ((score || !flags.use_default_scoring) && sc.custom_scoring_fn != NULL)
           check_custom_scoring_fn(score, m, sc, subject, ref);
@@ -740,12 +742,14 @@ void pqs_search(
 //' @param run_max_len Maximal length of quadruplex run.
 //' @param loop_min_len Minimal length of quadruplex loop.
 //' @param loop_max_len Maxmimal length of quadruplex loop.
-//' @param tetrad_bonus Score bonus for one complete G tetrade.
-//' @param bulge_penalty Penalization for a bulge in quadruplex run.
-//' @param mismatch_penalty Penalization for a mismatch in tetrad.
 //' @param max_bulges Maximal number of runs with bulge.
 //' @param max_mismatches Maximal number of runs with mismatch.
 //' @param max_defects Maximum number of defects in total (\code{max_bulges + max_mismatches}).
+//' @param tetrad_bonus Score bonus for one complete G tetrade.
+//' @param bulge_penalty Penalization for a bulge in quadruplex run.
+//' @param mismatch_penalty Penalization for a mismatch in tetrad.
+//' @param loop_mean_factor Penalization factor of loop lengths mean.
+//' @param loop_std_factor Penalization factor of loop lengths standard deviation.
 //' @param run_re Regular expression specifying one run of quadruplex.
 //' @param custom_scoring_fn Custom quadruplex scoring function. It takes the
 //'   following 10 arguments: \code{subject} - Input DNAString object,
@@ -787,12 +791,14 @@ SEXP pqsfinder(
     int run_max_len = 11,
     int loop_min_len = 0,
     int loop_max_len = 30,
-    int tetrad_bonus = 20,
-    int bulge_penalty = 10,
-    int mismatch_penalty = 10,
     int max_bulges = 1,
     int max_mismatches = 3,
     int max_defects = 3,
+    int tetrad_bonus = 20,
+    int bulge_penalty = 10,
+    int mismatch_penalty = 10,
+    float loop_mean_factor = 1,
+    float loop_sd_factor = 1,
     std::string run_re = "G{1,5}.{0,5}G{1,5}",
     SEXP custom_scoring_fn = R_NilValue,
     bool use_default_scoring = true,
@@ -858,6 +864,8 @@ SEXP pqsfinder(
   sc.tetrad_bonus = tetrad_bonus;
   sc.bulge_penalty = bulge_penalty;
   sc.mismatch_penalty = mismatch_penalty;
+  sc.loop_mean_factor = loop_mean_factor;
+  sc.loop_sd_factor = loop_sd_factor;
   sc.max_bulges = max_bulges;
   sc.max_mimatches = max_mismatches;
   sc.max_defects = max_defects;

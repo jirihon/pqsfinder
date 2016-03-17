@@ -6,10 +6,10 @@
 \usage{
 pqsfinder(subject, max_len = 50L, min_score = 0L, run_min_len = 3L,
   run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L,
-  tetrad_bonus = 20L, bulge_penalty = 10L, mismatch_penalty = 10L,
   max_bulges = 1L, max_mismatches = 3L, max_defects = 3L,
-  run_re = "G{1,5}.{0,5}G{1,5}", custom_scoring_fn = NULL,
-  use_default_scoring = TRUE, verbose = FALSE)
+  tetrad_bonus = 20L, bulge_penalty = 10L, mismatch_penalty = 10L,
+  loop_mean_factor = 1, loop_sd_factor = 1, run_re = "G{1,5}.{0,5}G{1,5}",
+  custom_scoring_fn = NULL, use_default_scoring = TRUE, verbose = FALSE)
 }
 \arguments{
 \item{subject}{DNAString object.}
@@ -26,17 +26,19 @@ pqsfinder(subject, max_len = 50L, min_score = 0L, run_min_len = 3L,
 
 \item{loop_max_len}{Maxmimal length of quadruplex loop.}
 
+\item{max_bulges}{Maximal number of runs with bulge.}
+
+\item{max_mismatches}{Maximal number of runs with mismatch.}
+
+\item{max_defects}{Maximum number of defects in total (\code{max_bulges + max_mismatches}).}
+
 \item{tetrad_bonus}{Score bonus for one complete G tetrade.}
 
 \item{bulge_penalty}{Penalization for a bulge in quadruplex run.}
 
 \item{mismatch_penalty}{Penalization for a mismatch in tetrad.}
 
-\item{max_bulges}{Maximal number of runs with bulge.}
-
-\item{max_mismatches}{Maximal number of runs with mismatch.}
-
-\item{max_defects}{Maximum number of defects in total (\code{max_bulges + max_mismatches}).}
+\item{loop_mean_factor}{Penalization factor of loop lengths mean.}
 
 \item{run_re}{Regular expression specifying one run of quadruplex.}
 
@@ -68,6 +70,8 @@ format: \code{start cnt pqs_sequence score}, where \code{start} is the PQS
 starting position, \code{pqs_sequence} shows the PQS sequence structure
 with each run surrounded by square brackets and \code{score} is the score
 assigned to the particular PQS by all applied scoring functions.}
+
+\item{loop_std_factor}{Penalization factor of loop lengths standard deviation.}
 }
 \value{
 \code{\link{PQSViews}} object
