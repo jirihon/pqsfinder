@@ -10,10 +10,11 @@ Authors@R: c(person("Jiri", "Hon", role = c("aut", "cre"),
                     email = "martinto@fit.vutbr.cz"))
 Author: Jiri Hon, Matej Lexa and Tomas Martinek
 Maintainer: Jiri Hon <jiri.hon@gmail.com>
-Description: This package provides functions for identification of potential
-    intramolecular quadruplex patterns in DNA sequence.
-    The main functionality is to detect the positions of subsequences capable of
-    folding into an intramolecular G4-quadruplex.
+Description: The main functionality of the this package is to detect DNA
+    sequence patterns that are likely to fold into an intramolecular G-quadruplex
+    (G4). Unlike many other approaches, this package is able to detect G4 folded
+    from imperfect G-runs containing bulges or mismatches and as such is more
+    sensitive and accurate than competing solutions.
 License: BSD_2_clause + file LICENSE
 biocViews: MotifDiscovery, SequenceMatching, GeneRegulation
 LazyData: TRUE
@@ -25,7 +26,11 @@ Imports:
     IRanges,
     S4Vectors,
     methods
-VignetteBuilder: knitr
-Suggests: BiocStyle, knitr, Gviz, rtracklayer
+Suggests:
+    BiocStyle,
+    knitr,
+    Gviz,
+    rtracklayer
 LinkingTo: Rcpp, BH, flowCore
+VignetteBuilder: knitr
 RoxygenNote: 5.0.1
