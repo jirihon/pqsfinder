@@ -34,40 +34,63 @@ Identification of potential quadruplex-forming sequences (PQS) in DNA is perform
 
 As a simple example, let's find all PQS in a short example DNA sequence.
 
-```{r basic_detection}
-seq <- DNAString("TTTTGGGCGGGAGGGTGGGTTTTTAACCCCCCCCAAAAATTTGGGAGGGTGGGTGTG")
+```{r basic_detection, results='hold'}
+seq <- DNAString("TTTTGGGCGGGAGGAGTGGAGTTTTTAACCCCCCCCAAAAATTTGGGAGGGTGGGTGGGAGAAAA")
 pqs <- pqsfinder(seq, max_len = 30)
 pqs
 ```
 
-Detected PQS are returned in the form of a `PQSViews` class, which represents the basic container for storing a set of views on the same input sequence based on `XStringViews` object from `r Biocpkg("Biostrings")` package. Each PQS in the view is defined by start location, width and score. All these values can be accessed by standard functions `start(x)`, `width(x)` and `score(x)` for further manipulation and analysis.
+Detected PQS are returned in the form of a `PQSViews` class, which represents the basic container for storing a set of views on the same input sequence based on `XStringViews` object from `r Biocpkg("Biostrings")` package. Each PQS in the view is defined by start location, width and score. All these values can be accessed by standard functions `start(x)`, `width(x)` and `score(x)` for further manipulation and analysis. For example:
 
 ```{r accessors}
 data.frame(b = start(pqs), w = width(pqs), s = score(pqs))
 ```
 
-As `pqsfinder` function reports only the best non-overlapping PQS,
+By default, `pqsfinder` function reports only the best non-overlapping PQS. However, it's possible to get numbers of all PQS overlapping PQS at each position in input sequence. To achieve that, call `density(x)` function on `PQSViews` object:
 
-```{r gviz, include=FALSE}
-library(Gviz)
+```{r density}
+density(pqs)
 ```
 
+The following example than shows, how such density vector could be simply visualized along input sequence using `r Biocpkg('Gviz')` from [Bioconductor].
 
-```{r density, fig.height=1.5, fig.width=8.0}
-dtrack <- DataTrack(range = IRanges(1:length(density(pqs)), width = 1),
-                    data = density(pqs), name = "PQS density", chromosome = "chr1")
+```{r density_viz, fig.height=1.5, fig.width=8.0, message=FALSE}
+library(Gviz)
 ss <- DNAStringSet(seq)
 names(ss) <- "chr1"
 strack <- SequenceTrack(ss, chromosome = "chr1", name = "sequence")
-
-plotTracks(c(dtrack, strack), type = "l", from = 1, to = length(density(pqs)) + 1)
+dtrack <- DataTrack(range = IRanges(1:length(density(pqs)*2), width = 2),
+                    data = density(pqs), name = "PQS density", chromosome = "chr1")
+suppressWarnings(plotTracks(c(dtrack, strack), type = "h"))
 ```
 
 
-Description of density vector.
-
-
 ## Modifying basic algorithm options
+
+Depending on the particular type of quadruplexes you want to detect, the algorithm options can be tuned to find those much more effectively and specifically. The table bellow gives an overview of all basic algorithm options and their description.
+
+Option name      | Description
+-----------------|----------------------------------------
+`max_len`        | Maximal total length of PQS.
+`min_score`      | Minimal score of PQS to be reported.
+`run_min_len`    | Minimal length of each PQS run (G-run).
+`run_max_len`    | Maximal length of each PQS run.
+`loop_min_len`   | Minimal length of each PQS inner loop.
+`loop_max_len`   | Maximal length of each PQS inner loop.
+`max_bulges`     | Maximal number of runs containing a bulge.
+`max_mismatches` | Maximal number of runs containing a mismatch.
+`max_defects`    | Maximum number of defects in total (#bulges + #mismatches).
+
+The more you narrow these options in terms of shorter PQS length, narrower run or loop length ranges and lower number of defects, the more high-throughput and more specific the detection process will be.
+
+**Important note:** In each run, the algorithm allows at most one type of defect and at least one run must be perfect, that means without any defect. Therefore the values of `max_bulges`, `max_mismatches` and `max_defects` must fall into the range from 0 to 3.
+
+**Example:** If you are insterested solely in G-quadruplexes with perfect G-runs, just restrict `max_defects` to zero:
+
+```{r perfect_g4, results='hold'}
+pqsfinder(seq, max_defects = 0)
+```
+
 
 # Exporting results
 
@@ -79,11 +102,43 @@ Description of density vector.
 
 # Customizing detection algorithm
 
+The underlying detection algorithm is almost fully customizable, it can even be setup to find fundamentally different types of G-quadruplexes. The very fist option, how to change the detection behavior is to tune scoring bonuses, penalizations and factors. Supported options are summarized in the table bellow:
+
+Option name        | Description
+-------------------|--------------------------------------
+`tetrad_bonus`     | Score bonus for each G tetrade, regardless the tetrade contains mismatches or not.
+`bulge_penalty`    | Penalization for a run with bulge.
+`mismatch_penalty` | Penalization for a run with mismatch.
+`loop_mean_factor` | Penalization factor of loop lengths mean.
+`loop_sd_factor`   | Penalization factor of loop lengths standard deviation.
+
 ## Custom scoring function
 
-Only perfect ones: run_re = G+ + custom_scoring_fn
+More complicated way to influence the algorithm output is to implement custom scoring function and pass it throught the `custom_scoring_fn` options. The function should take the following 10 arguments:
 
-## How to disable default internal scoring
+* `subject` - input DNAString object,
+* `score` - positive PQS score assigned by default internal scoring system, if enabled,
+* `start` - PQS start position,
+* `width` - PQS width,
+* `loop_1` - loop #1 start position,
+* `run_2` - run #2 start position,
+* `loop_2` - loop #2 start position,
+* `run_3` - run #3 start position,
+* `loop_3` - loop #3 start position,
+* `run_4` - run #4 start position.
+
+Return value of the function has to be new score represented as a single integer value. Please note that if `use_default_scoring` is enabled, the custom scoring function is evaluated **after** the default scoring system (DSS) but **only if** the DSS resulted in positive score (for performance reasons). On the other hand, when `use_default_scoring` is disabled, custom scoring function is evaluated on every PQS.
+
+**Example:** Imagine you would like to take into consideration scoring a metric developed by XXXX in G4Hunter. It can be easily done by defining your custom scoring function:
+
+```{r g4hunter}
+
+```
+
+
+## Disable default internal scoring
+
+Surely there will be cases when it is undesirable to have the DSS enabled.
 
 Basic interstrand quadruplexes
 
@@ -277,3 +332,5 @@ sessionInfo()
 
 [R]: http://r-project.org
 [RStudio]: http://www.rstudio.com/
+[Bioconductor]: http://www.bioconductor.org/
+
