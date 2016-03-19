@@ -57,10 +57,10 @@
 PQSViews <- function(
   subject, start, width, strand, score, density)
 {
-  s <- sort.int(start, index.return = TRUE)
+  ix <- order(start)
 
-  .PQSViews(subject = subject, ranges = IRanges(start = s$x, width = width[s$ix]),
-            elementMetadata = DataFrame(strand = strand[s$ix], score = score[s$ix]),
+  .PQSViews(subject = subject, ranges = IRanges(start = start[ix], width = width[ix]),
+            elementMetadata = DataFrame(strand = strand[ix], score = score[ix]),
             density = density)
 }
 
