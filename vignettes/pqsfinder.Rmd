@@ -35,7 +35,7 @@ Identification of potential quadruplex-forming sequences (PQS) in DNA is perform
 As a simple example, let's find all PQS in a short example DNA sequence.
 
 ```{r basic_detection, results='hold'}
-seq <- DNAString("TTTTGGGCGGGAGGAGTGGAGTTTTTAACCCCCCCCAAAAATTTGGGAGGGTGGGTGGGAGAAAA")
+seq <- DNAString("TTTTGGGCGGGAGGAGTGGAGTTTTTAACCCCAAAAATTTGGGAGGGTGGGTGGGAGAA")
 pqs <- pqsfinder(seq, max_len = 30)
 pqs
 ```
@@ -58,8 +58,9 @@ The following example than shows, how such density vector could be simply visual
 library(Gviz)
 ss <- DNAStringSet(seq)
 names(ss) <- "chr1"
-dtrack <- DataTrack(start = 1:length(density(pqs)*2), width = 2,
-                    data = density(pqs), chromosome = "chr1", genome = "", name = "density")
+dtrack <- DataTrack(
+  start = 1:length(density(pqs)*2), width = 2, data = density(pqs),
+  chromosome = "chr1", genome = "", name = "density")
 strack <- SequenceTrack(ss, chromosome = "chr1", name = "sequence")
 suppressWarnings(plotTracks(c(dtrack, strack), type = "h"))
 ```
@@ -237,10 +238,13 @@ In the following example, we load a human genome from the `r Biocpkg('BSgenome')
 10. Show PQS score and density distribution along AHNAK gene annotation using `r Biocpkg('Gviz')` package.
 
     ```{r rwe_viz, fig.height=4.0, fig.width=8.0}
-    strack <- DataTrack(start = start(pqs)+seq_start, end = end(pqs)+seq_start,
-                        data = score(pqs), chromosome = chr, genome = gnm, name = "score")
-    dtrack <- DataTrack(start = (seq_start):(seq_start+length(density(pqs))-1), width = 1,
-                        data = density(pqs), chromosome = chr, genome = gnm, name = "density")
+    strack <- DataTrack(
+      start = start(pqs)+seq_start, end = end(pqs)+seq_start,
+      data = score(pqs), chromosome = chr, genome = gnm, name = "score")
+    dtrack <- DataTrack(
+      start = (seq_start):(seq_start+length(density(pqs))-1), width = 1,
+      data = density(pqs), chromosome = chr, genome = gnm,
+      name = "density")
     atrack <- GenomeAxisTrack()
     suppressWarnings(plotTracks(c(btrack, strack, dtrack, atrack), type = "h"))
     ```
@@ -279,12 +283,14 @@ Return value of the function has to be new score represented as a single integer
 **Example:** Imagine you would like to assign a particular type of quadruplex more favourable score. For example you want to reflect that G-quadruplexes with all loops containing just a single cytosine tend to be more stable than similar ones with different nucleotide at the same place. This can be easily implemented by the following custom scoring function: 
 
 ```{r custom_scoring_fn}
-c_loop_bonus <- function(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4) {
+c_loop_bonus <- function(subject, score, start, width, loop_1,
+                         run_2, loop_2, run_3, loop_3, run_4) {
   l1 <- run_2 - loop_1
   l2 <- run_3 - loop_2
   l3 <- run_4 - loop_3
   if (l1 == l2 && l1 == l3 && subject[loop_1] == DNAString("C") &&
-      subject[loop_1] == subject[loop_2] && subject[loop_1] == subject[loop_3]) {
+      subject[loop_1] == subject[loop_2] &&
+      subject[loop_1] == subject[loop_3]) {
     score <- score + 20
   }
   return(score)
@@ -312,7 +318,8 @@ There might be use cases when it is undesirable to have the default scoring syst
 To detect isG4 by `pqsfinder` function, it is essential to change three options. At first, disable the DSS by setting `use_default_scoring` to `FALSE`. Secondly, specify custom regular expression defining one run of the quadruplex by setting `run_re` to `G{3,6}|C{3,6}`. The last step is to define custom scoring function validating each PQS:
 
 ```{r isg4_scoring_function}
-isG4 <- function(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4) {
+isG4 <- function(subject, score, start, width, loop_1,
+                 run_2, loop_2, run_3, loop_3, run_4) {
   r1 <- loop_1 - start
   r2 <- loop_2 - run_2
   r3 <- loop_3 - run_3
@@ -338,7 +345,8 @@ Let's see how it all work together:
 
 ```{r isg4_pqsfinder, results='hold'}
 pqsfinder(DNAString("AAAAGGGATCCCTAAGGGGTCCC"), strand = "+",
-          use_default_scoring = FALSE, run_re = "G{3,6}|C{3,6}", custom_scoring_fn = isG4)
+          use_default_scoring = FALSE, run_re = "G{3,6}|C{3,6}",
+          custom_scoring_fn = isG4)
 ```
 
 # Session info
