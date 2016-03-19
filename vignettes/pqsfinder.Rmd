@@ -18,7 +18,7 @@ output:
 
 The main functionality of the `r Biocpkg("pqsfinder")` package is to detect DNA sequence patterns that are likely to fold into an intramolecular G-quadruplex (G4). The main idea of our algorithmic approach is based on the fact that G4 structure arise from a compact sequence motif composed from four consecutive and possibly imperfect guanine runs (G-run) interrupted by loops of arbitrary lengths. The algorithm firstly identifies four consecutive G-run sequences, in the next step it checks the potential of such G-runs to be forming stable G4 and assignes corresponding quatitative score to each. Non-overlapping potential quadruplex-forming sequences (PQS) with positive score are then reported.
 
-It is important to note, that unlike many other approaches, our algorithm is able to detect PQS folded from imperfect G-runs containing bulges or mismatches and as such is more sensitive than competing algorithms. We also believe the presented solution is the most scalable since it can be easily and quickly customizable (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details) to detect even novel G4 types that might be discovered in the future.
+It is important to note, that unlike many other approaches, our algorithm is able to detect PQS folded from imperfect G-runs containing bulges or mismatches and as such is more sensitive than competing algorithms. We also believe the presented solution is the most scalable one since it can be easily and quickly customizable (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details) to detect even novel G4 types that might be discovered in the future.
 
 # G4-quadruplex detection
 
@@ -40,10 +40,10 @@ pqs <- pqsfinder(seq, max_len = 30)
 pqs
 ```
 
-Detected PQS are returned in the form of a `PQSViews` class, which represents the basic container for storing a set of views on the same input sequence based on `XStringViews` object from `r Biocpkg("Biostrings")` package. Each PQS in the view is defined by start location, width and score. All these values can be accessed by standard functions `start(x)`, `width(x)` and `score(x)` for further manipulation and analysis. For example:
+Detected PQS are returned in the form of a `PQSViews` class, which represents the basic container for storing a set of views on the same input sequence based on `XStringViews` object from `r Biocpkg("Biostrings")` package. Each PQS in the view is defined by start location, width and score. All these values can be accessed by standard functions `start(x)`, `width(x)`, `strand(x)` and `score(x)` for further manipulation and analysis. For example:
 
 ```{r accessors}
-data.frame(b = start(pqs), w = width(pqs), s = score(pqs))
+data.frame(b = start(pqs), w = width(pqs), s = strand(pqs), sc = score(pqs))
 ```
 
 By default, `pqsfinder` function reports only the best non-overlapping PQS. However, it's possible to get numbers of all PQS overlapping PQS at each position in input sequence. To achieve that, call `density(x)` function on `PQSViews` object:
@@ -86,10 +86,16 @@ The more you narrow these options in terms of shorter PQS length, narrower run o
 
 **Important note:** In each run, the algorithm allows at most one type of defect and at least one run must be perfect, that means without any defect. Therefore the values of `max_bulges`, `max_mismatches` and `max_defects` must fall into the range from 0 to 3.
 
-**Example:** If you are insterested solely in G-quadruplexes with perfect G-runs, just restrict `max_defects` to zero:
+**Example 1:** If you are insterested solely in G-quadruplexes with perfect G-runs, just restrict `max_defects` to zero:
 
 ```{r perfect_g4, results='hold'}
 pqsfinder(seq, max_defects = 0)
+```
+
+**Example 2:** If you want to report only high quality PQS, please set `min_score` to required value:
+
+```{r min_score, results='hold'}
+pqsfinder(seq, min_score = 40)
 ```
 
 # Exporting results
@@ -237,11 +243,35 @@ There might be use cases when it is undesirable to have the default scoring syst
 To detect isG4 by `pqsfinder` function, it is essential to change three options. At first, disable the DSS by setting `use_default_scoring` to `FALSE`. Secondly, specify custom regular expression defining one run of the quadruplex by setting `run_re` to `G{3,6}|C{3,6}`. The last step is to define custom scoring function validating each PQS:
 
 ```{r isg4_scoring_function}
-
+my_fn <- function(subject, score, start, width, loop_1, run_2, loop_2, run_3, loop_3, run_4) {
+  r1 <- loop_1 - start
+  r2 <- loop_2 - run_2
+  r3 <- loop_3 - run_3
+  r4 <- start + width - run_4
+  
+  if (!(r1 == r2 && r1 == r3 && r1 == r4))
+    return(0)
+  else
+    return(3)
+  
+  run_1_s <- subject[start:start+r1]
+  run_2_s <- subject[run_2:run_2+r2]
+  run_3_s <- subject[run_3:run_3+r3]
+  run_4_s <- subject[run_4:run_4+r4]
+  
+  if (grep("^G+$", run_1_s) && grep("^C+$", run_2_s) &&
+      grep("^G+$", run_3_s) && grep("^C+$", run_4_s))
+    return(r1 * 20)
+}
 ```
 
+Let's see how it work together.
 
-Basic interstrand quadruplexes
+```{r}
+pqsfinder(DNAString("GGGTCCCGGGTCCCAAAAAAGGGTGGGTGGGTGGG"),
+          use_default_scoring = FALSE, run_re = "G{3,6}|C{3,6}", custom_scoring_fn = my_fn)
+```
+
 
 [Bioconductor]: http://www.bioconductor.org/
 
