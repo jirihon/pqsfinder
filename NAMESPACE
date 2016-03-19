@@ -7,4 +7,4 @@ import(IRanges)
 import(S4Vectors)
 import(methods)
 
-useDynLib(pqsfinder, pqsfinder_pqsfinder)
+useDynLib(pqsfinder)
