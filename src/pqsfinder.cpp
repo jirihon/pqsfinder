@@ -574,7 +574,7 @@ void find_all_runs(
         if ((score || !flags.use_default_scoring) && sc.custom_scoring_fn != NULL)
           check_custom_scoring_fn(score, m, sc, subject, ref);
 
-        if (score) {
+        if (score && score >= opts.min_score) {
           // Current PQS satisfied all constraints.
 
           for (int k = 0; k < e - pqs_start; ++k)
