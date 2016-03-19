@@ -16,4 +16,9 @@ Strand vector
 \description{
 Get PQS strand vector
 }
+\examples{
+pqs <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
+strand(pqs)
+
+}
 

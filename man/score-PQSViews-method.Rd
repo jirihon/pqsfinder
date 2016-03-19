@@ -16,4 +16,9 @@ Score vector
 \description{
 Get PQS score vector
 }
+\examples{
+pqs <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
+score(pqs)
+
+}
 

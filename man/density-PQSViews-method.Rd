@@ -17,4 +17,9 @@ Density vector
 Desity vector represents numbers of PQS (potential quadruplex forming
 sequences) overlapping at each position in input sequence.
 }
+\examples{
+pqs <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
+density(pqs)
+
+}
 

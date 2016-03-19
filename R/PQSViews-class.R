@@ -69,6 +69,9 @@ PQSViews <- function(
 #'
 #' @param x PQSViews object
 #' @return Score vector
+#' @examples
+#' pqs <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
+#' score(pqs)
 #'
 setMethod("score", "PQSViews", function(x) mcols(x)$score)
 
@@ -76,6 +79,9 @@ setMethod("score", "PQSViews", function(x) mcols(x)$score)
 #'
 #' @param x PQSViews object
 #' @return Strand vector
+#' @examples
+#' pqs <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
+#' strand(pqs)
 #'
 setMethod("strand", "PQSViews", function(x) mcols(x)$strand)
 
@@ -86,6 +92,9 @@ setMethod("strand", "PQSViews", function(x) mcols(x)$strand)
 #'
 #' @param x PQSViews object
 #' @return Density vector
+#' @examples
+#' pqs <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
+#' density(pqs)
 #'
 setMethod("density", "PQSViews", function(x) x@density)
 
