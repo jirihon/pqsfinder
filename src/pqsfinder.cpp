@@ -233,36 +233,6 @@ inline void print_pqs(const run_match m[], int score, const string::const_iterat
 
 
 /**
- * Check lenghts of runs in quadruplex
- *
- * @param score Quadruplex score
- * @param m Quadruplex runs
- * @param sc Scoring table
- */
-inline void score_run_lengths(int &score, const run_match m[])
-{
-  int w1,w2,w3,w4;
-  w1 = m[0].length();
-  w2 = m[1].length();
-  w3 = m[2].length();
-  w4 = m[3].length();
-  /*
-   * Allowed length combinations:
-   * r r r r
-   * R r r r
-   * r R r r
-   * r r R r
-   * r r r R
-   */
-  if ((w1 == w2 && w1 == w3 && w1 == w4) ||
-      (w1 >  w2 && w2 == w3 && w2 == w4) ||
-      (w1 <  w2 && w1 == w3 && w1 == w4) ||
-      (w1 == w2 && w2 <  w3 && w1 == w4) ||
-      (w1 == w2 && w1 == w3 && w1 <  w4))
-    score = 1;
-}
-
-/**
  * Count number of G's in G-run.
  * This way of counting leads to only one bulge allowed in G-run.
  *
@@ -306,18 +276,6 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
 {
   int w[RUN_CNT], g[RUN_CNT];
   int pi = -1, mismatches = 0, bulges = 0, perfects = 0;
-
-  // int l1, l2, l3;
-  // l1 = m[1].first - m[0].second;
-  // l2 = m[2].first - m[1].second;
-  // l3 = m[3].first - m[2].second;
-  //
-  // if ((l1 > 8 && l2 > 8) ||
-  //     (l1 > 8 && l3 > 8) ||
-  //     (l2 > 8 && l3 > 8)) {
-  //   score = 0;
-  //   return;
-  // }
 
   w[0] = m[0].length();
   w[1] = m[1].length();
@@ -369,63 +327,6 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
     score = w[pi] * sc.tetrad_bonus - mismatches * sc.mismatch_penalty - bulges * sc.bulge_penalty;
   else
     score = 0;
-
-  // int g1,g2,g3,g4,w1,w2,w3,w4;
-  // w1 = m[0].length();
-  // w2 = m[1].length();
-  // w3 = m[2].length();
-  // w4 = m[3].length();
-  // g1 = count_g_num(m[0]);
-  // g2 = count_g_num(m[1]);
-  // g3 = count_g_num(m[2]);
-  // g4 = count_g_num(m[3]);
-  //
-  // // Rcout << w1 << " " << w2 << " " << w3 << " " << w4 << endl;
-  // // Rcout << g1 << " " << g2 << " " << g3 << " " << g4 << endl;
-  //
-  // /*
-  //  * Allowed combinations:
-  //  * g g g g
-  //  * R g g g
-  //  * g R g g
-  //  * g g R g
-  //  * g g g R
-  //  *
-  //  * Legend: g means that wi = gi
-  //  *         R repesents one longer run
-  //  */
-  // if (g1 == w1 && g2 == w2 && w3 == g3 && w4 == g4 && w1 == w2 && w2 == w3 && w3 == w4)
-  // {// canonical g-quadruplex
-  //   score += g1 * sc.tetrad_bonus;
-  // }
-  // else if ((g2 == w2 && g1 >= g2 && g2 == g3 && g2 == g4))
-  // {// bulge in the first run
-  //   score += g2 * sc.tetrad_bonus - sc.bulge_penalty;
-  // }
-  // else if ((g1 == w1 && g1 <= g2 && g1 == g3 && g1 == g4) ||
-  //          (g1 == w1 && g1 == g2 && g1 <= g3 && g1 == g4) ||
-  //         (g1 == w1 && g1 == g2 && g1 == g3 && g1 <= g4))
-  // {// bulge in the second, third or fourth run
-  //   score += g1 * sc.tetrad_bonus - sc.bulge_penalty;
-  // }
-  // else if (w1 == w2 && w1 == w3 && w1 == w4)
-  // {// bulges with same width, check for single mismatch
-  //   if ((g2 == w2 && g1 == g2-1 && g2 == g3   && g2 == g4))
-  //   {// mismatch in first run
-  //     score += g2 * sc.tetrad_bonus - sc.mismatch_penalty;
-  //   }
-  //   else if ((g1 == w1 && g1-1 == g2 && g1 == g3   && g1 == g4) ||
-  //            (g1 == w1 && g1 == g2   && g1-1 == g3 && g1 == g4) ||
-  //            (g1 == w1 && g1 == g2   && g1 == g3   && g1-1 == g4))
-  //   {// mismatch in second, third or fourth run
-  //     score += g1 * sc.tetrad_bonus - sc.mismatch_penalty;
-  //   }
-  //   else
-  //     score = 0;
-  // }
-  // else {// runs with invalid content
-  //   score = 0;
-  // }
 }
 
 
@@ -497,29 +398,6 @@ inline void check_custom_scoring_fn(
 
 
 /**
- * Check GC skewness
- *
- * @param score Quadruplex score
- * @param m Quadruples runs
- * @param sc Scoring table
- */
-inline void check_gc_skew(int &score, run_match m[])
-{
-  int gc_skew = 0;
-
-  // TODO: Implement exactly the same GC skew calculation as published in journal
-  for (string::const_iterator it = m[0].first; it < m[3].second; ++it) {
-    if (*it == 'G')
-      ++gc_skew;
-    else if (*it == 'C')
-      --gc_skew;
-  }
-  int run_sum_len = m[0].length() + m[1].length() + m[2].length() + m[3].length();
-  score = score - (run_sum_len - max(gc_skew, 0));
-}
-
-
-/**
  * Perform run search on particular sequence region
  *
  * @param s Start of region
@@ -568,6 +446,7 @@ inline bool find_run(
   }
   return status;
 }
+
 
 /**
  * Recursively idetify 4 consecutive runs making quadruplex
@@ -689,7 +568,6 @@ void find_all_runs(
 
         score = 0;
         if (flags.use_default_scoring) {
-          // score_run_lengths(score, m);
           score_run_content(score, m, sc);
           score_loop_lengths(score, m, sc);
         }
