@@ -422,7 +422,11 @@ inline bool find_run(
   string::const_iterator s = start, e;
 
   if (flags.use_re) {
-    status = boost::regex_search(start, end, boost_m, run_re_c, boost::match_default);
+    try {
+      status = boost::regex_search(start, end, boost_m, run_re_c, boost::match_default);
+    } catch (bad_alloc &ba) {
+      stop(string("Regexp engine failed with exception: ") + ba.what());
+    }
     if (status) {
       m.first = boost_m[0].first;
       m.second = boost_m[0].second;
@@ -571,8 +575,9 @@ void find_all_runs(
           score_run_content(score, m, sc);
           score_loop_lengths(score, m, sc);
         }
-        if ((score || !flags.use_default_scoring) && sc.custom_scoring_fn != NULL)
+        if ((score || !flags.use_default_scoring) && sc.custom_scoring_fn != NULL) {
           check_custom_scoring_fn(score, m, sc, subject, ref);
+        }
 
         if (score && score >= opts.min_score) {
           // Current PQS satisfied all constraints.
@@ -623,7 +628,7 @@ void pqs_search(
     SEXP subject,
     const string &seq,
     const string strand,
-    boost::regex &run_re_c,
+    const boost::regex &run_re_c,
     cache &ctable,
     const scoring &sc,
     const opts_t &opts,
