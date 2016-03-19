@@ -37,6 +37,14 @@ static const int RUN_CNT = 4;
 static const int CHECK_INT_PERIOD = 2e7;
 
 
+// Structure to store the currently best pqs during search
+typedef struct pqs {
+  string::const_iterator s;
+  string::const_iterator e;
+  int score;
+} pqs_t;
+
+
 /**
  * Cache for low complexity regions. It is usefull just for dealing with almost
  * G-complete sequence regions, which does not usually occur in human genome.
@@ -96,11 +104,15 @@ public:
   vector<int> start;
   vector<int> len;
   vector<int> score;
+  vector<string> strand;
   int *density;
 
   const int min_score;
+  const int seq_len;
 
-  results(const int seq_len, const int min_score) : min_score(min_score) {
+  results(const int seq_len, const int min_score) :
+    min_score(min_score), seq_len(seq_len)
+  {
     this->density = (int *)calloc(seq_len, sizeof(int));
     if (this->density == NULL)
       stop("Unable to allocate memory for results density vector.");
@@ -109,11 +121,34 @@ public:
     if (this->density != NULL)
       free(this->density);
   }
-  inline void save(const int start, const int len, const int score) {
-    if (score >= this->min_score) {
-      this->start.push_back(start + 1);
-      this->len.push_back(len);
-      this->score.push_back(score);
+  inline void save_pqs(
+    const pqs_t &pqs, const string::const_iterator ref, const string &strand)
+  {
+    if (pqs.score >= this->min_score) {
+      if (strand == "+")
+        this->start.push_back(pqs.s - ref + 1); // R indexing starts at 1
+      else
+        this->start.push_back(seq_len - (pqs.e - ref) + 1);
+
+      this->len.push_back(pqs.e - pqs.s);
+      this->score.push_back(pqs.score);
+      this->strand.push_back(strand);
+    }
+  }
+  inline void save_density(
+      const string::const_iterator &s, const string::const_iterator &ref,
+      const string &strand, const int *density, const int max_len)
+  {
+    int offset;
+    if (strand == "+") {
+      offset = s - ref;
+      for (int k = 0; k < max_len; ++k)
+        this->density[offset + k] += density[k];
+    }
+    else {
+      offset = (this->seq_len - 1) - (s - ref);
+      for (int k = 0; k < max_len; ++k)
+        this->density[offset - k] += density[k];
     }
   }
   inline void print(const string::const_iterator &ref) const {
@@ -168,13 +203,6 @@ typedef struct opts {
   int loop_min_len;
   int loop_max_len;
 } opts_t;
-
-// Structure to store the currently best pqs during search
-typedef struct pqs {
-  string::const_iterator s;
-  string::const_iterator e;
-  int score;
-} pqs_t;
 
 // Class representing one run from quadruplex
 class run_match {
@@ -544,6 +572,8 @@ inline bool find_run(
 /**
  * Recursively idetify 4 consecutive runs making quadruplex
  *
+ * @param subject DNAString object
+ * @param strand Strand specification
  * @param i Odinal number of quadruplex run
  * @param start Start position for the current run
  * @param end Limit end position for the current run
@@ -552,6 +582,7 @@ inline bool find_run(
  */
 void find_all_runs(
     SEXP subject,
+    const string &strand,
     int i,
     string::const_iterator start,
     string::const_iterator end,
@@ -589,13 +620,11 @@ void find_all_runs(
             Rcout << "Cache hit: " << s - ref  << " " << string(s, s+cache_hit->len)
                   << " " << cache_hit->score << endl;
 
-          for (int k = 0; k < opts.max_len; ++k) {
-            res.density[s - ref + k] += cache_hit->density[k];
-          }
+          res.save_density(s, ref, strand, cache_hit->density, opts.max_len);
 
           if (pqs_best.score && s >= pqs_best.e)
           {// Export PQS because no further overlapping pqs can be found
-            res.save(pqs_best.s - ref, pqs_best.e - pqs_best.s, pqs_best.score);
+            res.save_pqs(pqs_best, ref, strand);
             pqs_best.score = 0;
           }
           if (cache_hit->score > pqs_best.score) {
@@ -631,11 +660,16 @@ void find_all_runs(
 
       if (i == 0)
         // Enforce G4 total length limit to be relative to the first G-run start
-        find_all_runs(subject, i+1, e, min(s + opts.max_len, end), m, run_re_c, opts, flags, sc,
-                   ref, len, s, pqs_best, ctable, pqs_cache, pqs_cnt, res);
+        find_all_runs(
+          subject, strand, i+1, e, min(s + opts.max_len, end), m, run_re_c,
+          opts, flags, sc, ref, len, s, pqs_best, ctable, pqs_cache,
+          pqs_cnt, res
+        );
       else if (i < 3)
-        find_all_runs(subject, i+1, e, end, m, run_re_c, opts, flags, sc,
-                   ref, len, pqs_start, pqs_best, ctable, pqs_cache, pqs_cnt, res);
+        find_all_runs(
+          subject, strand, i+1, e, end, m, run_re_c, opts, flags, sc, ref, len,
+          pqs_start, pqs_best, ctable, pqs_cache, pqs_cnt, res
+        );
       else {
         /* Check user interrupt after reasonable amount of PQS identified to react
          * on important user signals. I.e. he might want to abort the computation. */
@@ -644,12 +678,12 @@ void find_all_runs(
           pqs_cnt = 0;
           checkUserInterrupt();
           if (!flags.verbose)
-            Rcout << "Search status: " << ceilf((m[0].first - ref)/(float)len*100) << " %\r";
+            Rcout << "Search status: " << ceilf((m[0].first - ref)/(float)len*100) << " %\r" << flush;
         }
 
         if (pqs_best.score && pqs_start >= pqs_best.e)
         {// Export PQS because no further overlapping pqs can be found
-          res.save(pqs_best.s - ref, pqs_best.e - pqs_best.s, pqs_best.score);
+          res.save_pqs(pqs_best, ref, strand);
           pqs_best.score = 0;
         }
 
@@ -689,8 +723,7 @@ void find_all_runs(
         ctable.put(s, min(s + opts.max_len, end), pqs_cache);
 
       // Add locally accumulated density to global density array
-      for (int k = 0; k < opts.max_len; ++k)
-        res.density[s - ref + k] += pqs_cache.density[k];
+      res.save_density(s, ref, strand, pqs_cache.density, opts.max_len);
     }
   }
 }
@@ -699,42 +732,39 @@ void find_all_runs(
 /**
  * Perform quadruplex search on given DNA sequence.
  *
+ * @param subject DNAString object
  * @param seq DNA sequence
+ * @param strand Strand specification
  * @param run_re Run regular expression
  * @param sc Scoring options
- * @param opt Algorihtm options
+ * @param opts Algorihtm options
  * @param flags Algorithm flags
- * @param res Results
+ * @param res Results object
  */
 void pqs_search(
     SEXP subject,
     const string &seq,
-    const string &run_re,
+    const string strand,
+    boost::regex &run_re_c,
+    cache &ctable,
     const scoring &sc,
     const opts_t &opts,
     const flags_t &flags,
     results &res)
 {
-  boost::regex run_re_c(run_re);
   run_match m[RUN_CNT];
-
-  cache ctable(opts.max_len);
   cache::entry pqs_cache(opts.max_len);
-
   pqs_t pqs_best;
   pqs_best.score = 0;
-
   string::const_iterator pqs_start;
   int pqs_cnt = 0;
 
-  Rcout << "Searching...\n";
-
   // Global sequence length is the only limit for the first G-run
-  find_all_runs(subject, 0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc,
+  find_all_runs(subject, strand, 0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc,
                 seq.begin(), seq.length(), pqs_start, pqs_best, ctable, pqs_cache, pqs_cnt, res);
 
   if (pqs_best.score)
-    res.save(pqs_best.s - seq.begin(), pqs_best.e - pqs_best.s, pqs_best.score);
+    res.save_pqs(pqs_best, seq.begin(), strand);
 }
 
 
@@ -744,6 +774,9 @@ void pqs_search(
 //' patterns (PQS) in DNA sequence.
 //'
 //' @param subject DNAString object.
+//' @param strand Strand specification. Allowed values are "+", "-" or "*",
+//'   where the last one represents both strands. Implicitly, the input
+//'   DNAString object is assumed to encode the "+" strand.
 //' @param max_len Maximal lenth of PQS.
 //' @param min_score Minimal PQS score.
 //' @param run_min_len Minimal length of quadruplex run.
@@ -752,12 +785,14 @@ void pqs_search(
 //' @param loop_max_len Maxmimal length of quadruplex loop.
 //' @param max_bulges Maximal number of runs with bulge.
 //' @param max_mismatches Maximal number of runs with mismatch.
-//' @param max_defects Maximum number of defects in total (\code{max_bulges + max_mismatches}).
+//' @param max_defects Maximum number of defects in total (\code{max_bulges +
+//'   max_mismatches}).
 //' @param tetrad_bonus Score bonus for one complete G tetrade.
 //' @param bulge_penalty Penalization for a bulge in quadruplex run.
 //' @param mismatch_penalty Penalization for a mismatch in tetrad.
 //' @param loop_mean_factor Penalization factor of loop lengths mean.
-//' @param loop_sd_factor Penalization factor of loop lengths standard deviation.
+//' @param loop_sd_factor Penalization factor of loop lengths standard
+//'   deviation.
 //' @param run_re Regular expression specifying one run of quadruplex.
 //' @param custom_scoring_fn Custom quadruplex scoring function. It takes the
 //'   following 10 arguments: \code{subject} - Input DNAString object,
@@ -793,6 +828,7 @@ void pqs_search(
 // [[Rcpp::export]]
 SEXP pqsfinder(
     SEXP subject,
+    std::string strand = "*",
     int max_len = 50,
     int min_score = 0,
     int run_min_len = 3,
@@ -837,6 +873,8 @@ SEXP pqsfinder(
     stop("Maximum number of runs with mismatches has to be from the range 0-3.");
   if (max_defects < 0 || max_defects > 3)
     stop("Maximum number of runs with defects (bulge or mismatch) has to be from the range 0-3.");
+  if (strand != "+" && strand != "-" && strand != "*")
+    stop("Strand specification must be +, - or *.");
 
   Function as_character("as.character");
   Function get_class("class");
@@ -845,8 +883,6 @@ SEXP pqsfinder(
 
   if (subject_class[0] != "DNAString")
     stop("Subject must be DNAString object.");
-
-  string seq = as<string>(as_character(subject));
 
   flags_t flags;
   flags.use_cache = true;
@@ -878,7 +914,14 @@ SEXP pqsfinder(
   sc.max_mimatches = max_mismatches;
   sc.max_defects = max_defects;
 
+  string seq = as<string>(as_character(subject));
+  Function reverseComplement("reverseComplement");
+  SEXP subject_rc = reverseComplement(subject);
+  string seq_rc = as<string>(as_character(subject_rc));
+
   results res(seq.length(), opts.min_score);
+  cache ctable(opts.max_len);
+  boost::regex run_re_c(run_re);
 
   if (flags.debug) {
     Rcout << "G-run regexp: " << run_re << endl;
@@ -902,7 +945,14 @@ SEXP pqsfinder(
     ProfilerStart("profiling.log");
   #endif
 
-  pqs_search(subject, seq, run_re, sc, opts, flags, res);
+  if (strand == "+" || strand == "*") {
+    Rcout << "Searching on sense strand..." << endl;
+    pqs_search(subject, seq, "+", run_re_c, ctable, sc, opts, flags, res);
+  }
+  if (strand == "-" || strand == "*") {
+    Rcout << "Searching on antisense strand..." << endl;
+    pqs_search(subject_rc, seq_rc, "-", run_re_c, ctable, sc, opts, flags, res);
+  }
 
   #ifdef _GLIBCXX_DEBUG
   if (flags.use_prof)
@@ -912,11 +962,12 @@ SEXP pqsfinder(
   NumericVector res_start(res.start.begin(), res.start.end());
   NumericVector res_width(res.len.begin(), res.len.end());
   NumericVector res_score(res.score.begin(), res.score.end());
+  CharacterVector res_strand(res.strand.begin(), res.strand.end());
 
   NumericVector res_density(seq.length());
   for (unsigned i = 0; i < seq.length(); ++i)
     res_density[i] = res.density[i];
 
   Function pqsviews("PQSViews");
-  return pqsviews(subject, res_start, res_width, res_score, res_density);
+  return pqsviews(subject, res_start, res_width, res_strand, res_score, res_density);
 }

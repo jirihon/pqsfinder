@@ -4,7 +4,7 @@
 \alias{PQSViews}
 \title{PQSViews class constructor.}
 \usage{
-PQSViews(subject, start, width, score, density)
+PQSViews(subject, start, width, strand, score, density)
 }
 \arguments{
 \item{subject}{DNAString object.}
@@ -12,6 +12,8 @@ PQSViews(subject, start, width, score, density)
 \item{start}{Vector of PQS start positions.}
 
 \item{width}{Vector of PQS lengths.}
+
+\item{strand}{Vector of PQS strand specifications.}
 
 \item{score}{Vector of PQS scores.}
 
@@ -27,9 +29,10 @@ quadruplex forming sequences (PQS). PQSViews is a subclass of
 PQS density.
 }
 \examples{
-pv <- PQSViews(DNAString("CGGGCGGGGC"), 1:2, 2:3, 10:11, 1:10)
+pv <- PQSViews(DNAString("CGGGCGGGGC"), 1:2, 2:3, "+", 10:11, 1:10)
 start(pv)
 width(pv)
+strand(pv)
 score(pv)
 density(pv)
 

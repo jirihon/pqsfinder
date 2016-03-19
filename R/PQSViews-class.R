@@ -41,22 +41,27 @@
 #' @param subject DNAString object.
 #' @param start Vector of PQS start positions.
 #' @param width Vector of PQS lengths.
+#' @param strand Vector of PQS strand specifications.
 #' @param score Vector of PQS scores.
 #' @param density Numbers of PQS overlapping at each position in \code{subject}.
 #' @return PQSViews object
 #'
 #' @examples
-#' pv <- PQSViews(DNAString("CGGGCGGGGC"), 1:2, 2:3, 10:11, 1:10)
+#' pv <- PQSViews(DNAString("CGGGCGGGGC"), 1:2, 2:3, "+", 10:11, 1:10)
 #' start(pv)
 #' width(pv)
+#' strand(pv)
 #' score(pv)
 #' density(pv)
 #'
 PQSViews <- function(
-  subject, start, width, score, density)
+  subject, start, width, strand, score, density)
 {
-  .PQSViews(subject = subject, ranges = IRanges(start = start, width = width),
-            elementMetadata = DataFrame(score = score), density = density)
+  s <- sort.int(start, index.return = TRUE)
+
+  .PQSViews(subject = subject, ranges = IRanges(start = s$x, width = width[s$ix]),
+            elementMetadata = DataFrame(strand = strand[s$ix], score = score[s$ix]),
+            density = density)
 }
 
 
@@ -66,6 +71,13 @@ PQSViews <- function(
 #' @return Score vector
 #'
 setMethod("score", "PQSViews", function(x) mcols(x)$score)
+
+#' Get PQS strand vector
+#'
+#' @param x PQSViews object
+#' @return Strand vector
+#'
+setMethod("strand", "PQSViews", function(x) mcols(x)$strand)
 
 #' Get density vector
 #'
@@ -178,9 +190,10 @@ setMethod("density", "PQSViews", function(x) x@density)
   ## ... other parameters passed to format function
   ##
   cols <- list(
-    list(nm="start",  fn="start"),
-    list(nm="width",  fn="width"),
-    list(nm="score",  fn="score")
+    list(nm="start",  fn="start" ),
+    list(nm="width",  fn="width" ),
+    list(nm="score",  fn="score" ),
+    list(nm="strand", fn="strand")
     #list(nm="pvalue", fn="pvalue", scientific=TRUE, digits=2),
   )
 
@@ -253,6 +266,7 @@ setAs("PQSViews", "DNAStringSet", function(from)
     names(s)[i] <- paste(
       "start=", start(from)[i], ";",
       "end=", end(from)[i], ";",
+      "strand=", strand(from)[i], ";",
       "score=", score(from)[i], ";",
       sep=""
     )
@@ -272,7 +286,7 @@ setAs("PQSViews", "GRanges", function(from)
   GRanges(
     "chr1",
     IRanges(start(from), end(from)),
-    "+",
+    strand(from),
     score = score(from),
     seqlengths = seqlen
   )

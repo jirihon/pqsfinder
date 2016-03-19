@@ -4,15 +4,20 @@
 \alias{pqsfinder}
 \title{Identificate potential quadruplex forming sequences.}
 \usage{
-pqsfinder(subject, max_len = 50L, min_score = 0L, run_min_len = 3L,
-  run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L,
-  max_bulges = 1L, max_mismatches = 3L, max_defects = 3L,
-  tetrad_bonus = 20L, bulge_penalty = 10L, mismatch_penalty = 10L,
-  loop_mean_factor = 1, loop_sd_factor = 1, run_re = "G{1,5}.{0,5}G{1,5}",
-  custom_scoring_fn = NULL, use_default_scoring = TRUE, verbose = FALSE)
+pqsfinder(subject, strand = "*", max_len = 50L, min_score = 0L,
+  run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L,
+  loop_max_len = 30L, max_bulges = 1L, max_mismatches = 3L,
+  max_defects = 3L, tetrad_bonus = 20L, bulge_penalty = 10L,
+  mismatch_penalty = 10L, loop_mean_factor = 1, loop_sd_factor = 1,
+  run_re = "G{1,5}.{0,5}G{1,5}", custom_scoring_fn = NULL,
+  use_default_scoring = TRUE, verbose = FALSE)
 }
 \arguments{
 \item{subject}{DNAString object.}
+
+\item{strand}{Strand specification. Allowed values are "+", "-" or "*",
+where the last one represents both strands. Implicitly, the input
+DNAString object is assumed to encode the "+" strand.}
 
 \item{max_len}{Maximal lenth of PQS.}
 
@@ -30,7 +35,8 @@ pqsfinder(subject, max_len = 50L, min_score = 0L, run_min_len = 3L,
 
 \item{max_mismatches}{Maximal number of runs with mismatch.}
 
-\item{max_defects}{Maximum number of defects in total (\code{max_bulges + max_mismatches}).}
+\item{max_defects}{Maximum number of defects in total (\code{max_bulges +
+max_mismatches}).}
 
 \item{tetrad_bonus}{Score bonus for one complete G tetrade.}
 
@@ -40,7 +46,8 @@ pqsfinder(subject, max_len = 50L, min_score = 0L, run_min_len = 3L,
 
 \item{loop_mean_factor}{Penalization factor of loop lengths mean.}
 
-\item{loop_sd_factor}{Penalization factor of loop lengths standard deviation.}
+\item{loop_sd_factor}{Penalization factor of loop lengths standard
+deviation.}
 
 \item{run_re}{Regular expression specifying one run of quadruplex.}
 
