@@ -70,7 +70,7 @@ library(Gviz)
 ss <- DNAStringSet(seq)
 names(ss) <- "chr1"
 dtrack <- DataTrack(
-  start = 1:length(density(pqs)*2), width = 2, data = density(pqs),
+  start = 1:length(density(pqs)), width = 1, data = density(pqs),
   chromosome = "chr1", genome = "", name = "density")
 strack <- SequenceTrack(ss, chromosome = "chr1", name = "sequence")
 suppressWarnings(plotTracks(c(dtrack, strack), type = "h"))
@@ -103,10 +103,10 @@ The more you narrow these options in terms of shorter PQS length, narrower run o
 pqsfinder(seq, max_defects = 0)
 ```
 
-**Example 2:** If you want to report only high quality PQS, please set `min_score` to the required value:
+**Example 2:** If you want to report only higher quality PQS, please set `min_score` to the required value:
 
 ```{r min_score, results='hold'}
-pqsfinder(seq, min_score = 40)
+pqsfinder(seq, min_score = 80)
 ```
 
 # Exporting results
@@ -197,10 +197,10 @@ In the following example, we load the human genome from the `r Biocpkg('BSgenome
     seq <- Hsapiens[[chr]][seq_start:seq_end]
     ```
 
-4. Search for PQS on both strands. Minimal score is set to 40.
+4. Search for PQS on both strands.
 
     ```{r rwe_pqsfinder, results='hide'}
-    pqs <- pqsfinder(seq, min_score = 40)
+    pqs <- pqsfinder(seq)
     ```
 
 5. Display the results.
