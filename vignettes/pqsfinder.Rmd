@@ -17,13 +17,15 @@ output:
 
 # Introduction
 
-The main functionality of the `r Biocpkg("pqsfinder")` package is to detect DNA sequence patterns that are likely to fold into an intramolecular G-quadruplex (G4). G4 is a DNA structure alternative to the canonical B-DNA that is believed to be involved in regulation of diverse biological processes, such as telomere maintenance, DNA replication, chromatin formation, transcription, recombination or mutation [@maizels_2014; @kejnovsky_etal_2015]. The main idea of our algorithmic approach is based on the fact that G4 structures arise from compact sequence motifs composed of four consecutive and possibly imperfect guanine runs (G-run) interrupted by loops of semi-arbitrary lengths. The algorithm first identifies four consecutive G-run sequences. Subsequently, it examines the potential of such G-runs to form a stable G4 and assigns a corresponding quatitative score to each. Non-overlapping potential quadruplex-forming sequences (PQS) with positive score are then reported.
+The main functionality of the `r Biocpkg("pqsfinder")` package is to detect DNA sequence patterns that are likely to fold into an intramolecular G-quadruplex (G4). G4 is a DNA structure that can form as an alternative to the canonical B-DNA. G4s are believed to be involved in regulation of diverse biological processes, such as telomere maintenance, DNA replication, chromatin formation, transcription, recombination or mutation [@maizels_2014; @kejnovsky_etal_2015]. The main idea of our algorithmic approach is based on the fact that G4 structures arise from compact sequence motifs composed of four consecutive and possibly imperfect guanine runs (G-run) interrupted by loops of semi-arbitrary lengths. The algorithm first identifies four consecutive G-run sequences. Subsequently, it examines the potential of such G-runs to form a stable G4 and assigns a corresponding quatitative score to each. Non-overlapping potential quadruplex-forming sequences (PQS) with positive score are then reported.[^1]
 
-It is important to note that unlike many other approaches, our algorithm is able to detect sequences responsible for G4s folded from imperfect G-runs containing bulges or mismatches and as such is more sensitive than competing algorithms [^1]. We also believe the presented solution is the most scalable one since it can be easily and quickly customized (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details) to even detect novel and experimental G4 types that might be discovered or studied in the future.
+[^1]: Please, note that this currently has the effect of supressing output of a PQS which is above the `min_score` threshold and is only overlapped by a lower-quality PQS, if such bridging PQS connects it to a cluster containing a higher-quality PQS. Only one (the highest-scoring) PQS is reported per overlap cluster. This regime is not fully satidfactory and will likely be improved in the next version.
 
-[^1]: We have tested `r Biocpkg('pqsfinder')` on experimentally verified G4 sequences. The results of that work are reflected in default settings of searches. Details of these tests will be presented elsewhere. 
+It is important to note that unlike many other approaches, our algorithm is able to detect sequences responsible for G4s folded from imperfect G-runs containing bulges or mismatches and as such is more sensitive than competing algorithms [^2]. We also believe the presented solution is the most scalable, since it can be easily and quickly customized (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details). The program can be made to detect novel or experimental G4 types that might be discovered or studied in future.
 
-You might also want to know we have previously authored a similar package that can be used to search for triplexes, another type of non-B DNA structure. For details, please see `r Biocpkg('triplex')` package landing page.
+[^2]: We have tested `r Biocpkg('pqsfinder')` on experimentally verified G4 sequences. The results of that work are reflected in default settings of searches. Details of these tests will be presented elsewhere. 
+
+For those interested in non-B DNA, we have previously authored a similar package that can be used to search for triplexes, another type of non-B DNA structure. For details, please see `r Biocpkg('triplex')` package landing page.
 
 # G4-quadruplex detection
 
@@ -51,13 +53,15 @@ Detected PQS are returned in the form of a `PQSViews` class, which represents th
 data.frame(b = start(pqs), w = width(pqs), s = strand(pqs), sc = score(pqs))
 ```
 
-By default, `pqsfinder` function reports only the locally best non-overlapping PQS, ignoring any other that would overlap them. However, it's possible to get numbers of all overlapping PQS at each position of the input sequence. To achieve that, call `density(x)` function on the `PQSViews` object:
+By default, `pqsfinder` function reports only the locally best non-overlapping PQS, ignoring any other that would overlap it, even indirectly (see footnote 1). However, it's possible to get numbers of all overlapping PQS at each position of the input sequence. To achieve that, call `density(x)` function on the `PQSViews` object:[^3]
+
+[^3]: Clusters of overlapping PQS usually have steep edges when the number of neighboring G-runs is low, but could be more spread out in other situations. 
 
 ```{r density}
 density(pqs)
 ```
 
-The following example than shows, how such density vector could be simply visualized along input sequence using `r Biocpkg('Gviz')` from [Bioconductor](http://www.bioconductor.org/).
+The following example shows, how such density vector could be simply visualized along the input sequence using `r Biocpkg('Gviz')` from [Bioconductor](http://www.bioconductor.org/).
 
 ```{r density_viz, fig.height=1.5, fig.width=8.0, message=FALSE}
 library(Gviz)
@@ -72,7 +76,7 @@ suppressWarnings(plotTracks(c(dtrack, strack), type = "h"))
 
 ## Modifying basic algorithm options
 
-Depending on the particular type of PQS you want to detect, the algorithm options can be tuned to find them effectively and exclusively. The table bellow gives an overview of all basic algorithm options and their descriptions.
+Depending on the particular type of PQS you want to detect, the algorithm options can be tuned to find the PQS effectively and exclusively. The table bellow gives an overview of all basic algorithm options and their descriptions.
 
 Option name      | Description
 -----------------|----------------------------------------
@@ -268,7 +272,7 @@ Option name        | Description
 `loop_mean_factor` | Penalization factor of loop length mean.
 `loop_sd_factor`   | Penalization factor of loop length standard deviation.
 
-## Custom the scoring function
+## Customizing the scoring function
 
 A more complicated way to influence the algorithm output is to implement a custom scoring function and pass it throught the `custom_scoring_fn` options. Before you start experimenting with this feature, please consider the fact that custom scoring function can **influence the overall algorithm performance very negatively**, particularly on long sequences. The best use case of this feature is rapid prototyping of novel scoring techniques, which can be later implemented efficiently, for example in the next version of this package. Thus, if you have any suggestions how to further improve the default scoring system (DSS), please let us know, we would highly appreciate that.
 
