@@ -166,17 +166,19 @@ In the following example, we load the human genome from the `r Biocpkg('BSgenome
 
     ```{r rwe_libraries, message=FALSE}
     library(pqsfinder)
-    library(BSgenome.Hsapiens.UCSC.hg19)
-    library(rtracklayer )
+    library(biomaRt)
+    library(BSgenome.Hsapiens.UCSC.hg38)
+    library(rtracklayer)
     library(Gviz)
     ```
 
 2. Retrive AHNAK gene Biomart annotation.
 
     ```{r rwe_biomart, warning=FALSE}
-    gnm <- "hg19"
+    gnm <- "hg38"
     gene <- "AHNAK"
-    btrack <- BiomartGeneRegionTrack(genome = gnm,  symbol = gene,  name = gene)
+    mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+    btrack <- BiomartGeneRegionTrack(biomart = mart, genome = gnm,  symbol = gene,  name = gene)
     ```
 
 3. Get AHNAK sequence from `r Biocpkg('BSgenome')` package extended by 1000 nucleotides on both sides.
