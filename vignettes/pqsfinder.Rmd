@@ -53,9 +53,11 @@ Detected PQS are returned in the form of a `PQSViews` class, which represents th
 data.frame(b = start(pqs), w = width(pqs), s = strand(pqs), sc = score(pqs))
 ```
 
-By default, `pqsfinder` function reports only the locally best non-overlapping PQS, ignoring any other that would overlap it, even indirectly (see footnote 1). However, it's possible to get numbers of all overlapping PQS at each position of the input sequence. To achieve that, call `density(x)` function on the `PQSViews` object:[^3]
+By default, `pqsfinder` function reports only the locally best non-overlapping PQS, ignoring any other that would overlap it, even indirectly [^3]. However, it's possible to get numbers of all overlapping PQS at each position of the input sequence. To achieve that, call `density(x)` function on the `PQSViews` object:[^4]
 
-[^3]: Clusters of overlapping PQS usually have steep edges when the number of neighboring G-runs is low, but could be more spread out in other situations. 
+[^3]: Please see footnote 1.
+
+[^4]: Clusters of overlapping PQS usually have steep edges when the number of neighboring G-runs is low, but could be more spread out in other situations. 
 
 ```{r density}
 density(pqs)
