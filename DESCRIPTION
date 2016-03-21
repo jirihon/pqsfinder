@@ -30,7 +30,9 @@ Suggests:
     BiocStyle,
     knitr,
     Gviz,
-    rtracklayer
+    rtracklayer,
+    biomaRt,
+    BSgenome.Hsapiens.UCSC.hg38
 LinkingTo: Rcpp, BH, flowCore
 VignetteBuilder: knitr
 RoxygenNote: 5.0.1
