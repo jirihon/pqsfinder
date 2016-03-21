@@ -713,7 +713,7 @@ SEXP pqsfinder(
     SEXP subject,
     std::string strand = "*",
     int max_len = 50,
-    int min_score = 0,
+    int min_score = 1,
     int run_min_len = 3,
     int run_max_len = 11,
     int loop_min_len = 0,
@@ -733,8 +733,8 @@ SEXP pqsfinder(
 {
   if (max_len < 1)
     stop("Maximal length of PQS has to be positive value.");
-  if (min_score < 0)
-    stop("Minimal PQS score has to be non-negative value.");
+  if (min_score < 1)
+    stop("Minimal PQS score has to be positive value.");
 
   if (run_min_len < 0)
     stop("Minimal PQS run length has to be non-negative value.");

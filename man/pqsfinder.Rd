@@ -4,7 +4,7 @@
 \alias{pqsfinder}
 \title{Identificate potential quadruplex forming sequences.}
 \usage{
-pqsfinder(subject, strand = "*", max_len = 50L, min_score = 0L,
+pqsfinder(subject, strand = "*", max_len = 50L, min_score = 1L,
   run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L,
   loop_max_len = 30L, max_bulges = 1L, max_mismatches = 3L,
   max_defects = 3L, tetrad_bonus = 20L, bulge_penalty = 10L,
