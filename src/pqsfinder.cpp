@@ -324,7 +324,7 @@ inline void score_run_content(int &score, const run_match m[], const scoring &sc
     }
   }
   if (mismatches <= sc.max_mimatches && bulges <= sc.max_bulges && mismatches + bulges <= sc.max_defects)
-    score = w[pi] * sc.tetrad_bonus - mismatches * sc.mismatch_penalty - bulges * sc.bulge_penalty;
+    score = (w[pi] - 1) * sc.tetrad_bonus - mismatches * sc.mismatch_penalty - bulges * sc.bulge_penalty;
   else
     score = 0;
 }
