@@ -58,7 +58,7 @@
 #' @examples
 #' pv <- pqsfinder(DNAString("CCCCCCGGGTGGGTGGGTGGGAAAA"))
 #'
-pqsfinder <- function(subject, strand = "*", max_len = 50L, min_score = 1L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, max_bulges = 1L, max_mismatches = 3L, max_defects = 3L, tetrad_bonus = 20L, bulge_penalty = 10L, mismatch_penalty = 10L, loop_mean_factor = 1, loop_sd_factor = 1, run_re = "G{1,5}.{0,5}G{1,5}", custom_scoring_fn = NULL, use_default_scoring = TRUE, verbose = FALSE) {
+pqsfinder <- function(subject, strand = "*", max_len = 50L, min_score = 42L, run_min_len = 3L, run_max_len = 11L, loop_min_len = 0L, loop_max_len = 30L, max_bulges = 3L, max_mismatches = 2L, max_defects = 3L, tetrad_bonus = 45L, bulge_penalty = 20L, mismatch_penalty = 31L, loop_mean_factor = 1, loop_sd_factor = 1, run_re = "G{1,5}.{0,5}G{1,5}", custom_scoring_fn = NULL, use_default_scoring = TRUE, verbose = FALSE) {
     .Call('pqsfinder_pqsfinder', PACKAGE = 'pqsfinder', subject, strand, max_len, min_score, run_min_len, run_max_len, loop_min_len, loop_max_len, max_bulges, max_mismatches, max_defects, tetrad_bonus, bulge_penalty, mismatch_penalty, loop_mean_factor, loop_sd_factor, run_re, custom_scoring_fn, use_default_scoring, verbose)
 }
 
