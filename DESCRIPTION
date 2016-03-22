@@ -12,7 +12,7 @@ Author: Jiri Hon, Matej Lexa and Tomas Martinek
 Maintainer: Jiri Hon <jiri.hon@gmail.com>
 Description: The main functionality of the this package is to detect DNA
     sequence patterns that are likely to fold into an intramolecular
-    G-quadruplex (G4). nlike many other approaches, our algorithm is able
+    G-quadruplex (G4). Unlike many other approaches, our algorithm is able
     to detect sequences responsible for G4s folded from imperfect G-runs
     containing bulges or mismatches and as such is more sensitive than
     competing algorithms.
