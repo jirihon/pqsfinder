@@ -10,7 +10,7 @@
 #define PQS_STORAGE_HEADER
 
 #include <Rcpp.h>
-#include "results.hpp"
+#include "results.h"
 
 using namespace Rcpp;
 using namespace std;

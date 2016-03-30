@@ -15,9 +15,9 @@
 #ifdef _GLIBCXX_DEBUG
 #include <google/profiler.h>
 #endif
-#include "results.hpp"
-#include "pqs_storage.hpp"
-#include "pqs_cache.hpp"
+#include "results.h"
+#include "pqs_storage.h"
+#include "pqs_cache.h"
 
 using namespace Rcpp;
 using namespace std;
