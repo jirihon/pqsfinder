@@ -75,7 +75,7 @@ public:
   }
   inline void export_pqs(results &res, const string::const_iterator &ref,
                    const string &strand) {
-    this->best.score = 0;
+    this->best.score = 0; // reset
 
     range best_pqs;
     storage_t::iterator it;
