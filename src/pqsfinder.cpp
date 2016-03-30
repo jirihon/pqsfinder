@@ -15,6 +15,9 @@
 #ifdef _GLIBCXX_DEBUG
 #include <google/profiler.h>
 #endif
+#include "results.hpp"
+#include "pqs_storage.hpp"
+#include "pqs_cache.hpp"
 
 using namespace Rcpp;
 using namespace std;
@@ -35,131 +38,6 @@ using namespace std;
 // Implementation constants
 static const int RUN_CNT = 4;
 static const int CHECK_INT_PERIOD = 2e7;
-
-
-// Structure to store the currently best pqs during search
-typedef struct pqs {
-  string::const_iterator s;
-  string::const_iterator e;
-  int score;
-} pqs_t;
-
-
-/**
- * Cache for low complexity regions. It is usefull just for dealing with almost
- * G-complete sequence regions, which does not usually occur in human genome.
- */
-class cache {
-public:
-  class entry {
-  public:
-    int *density;
-    int score;
-    int len;
-    const int max_len;
-    entry(const int max_len) : score(0), len(0), max_len(max_len) {
-      this->density = (int *)calloc(this->max_len, sizeof(int));
-      if (this->density == NULL)
-        stop("Unable to allocate memory for cache density vector.");
-    }
-    entry(const entry &obj) : score(obj.score), len(obj.len), max_len(obj.max_len) {
-      this->density = (int *)malloc(this->max_len * sizeof(int));
-      if (this->density == NULL)
-        stop("Unable to allocate memory for cache density vector.");
-      memcpy(this->density, obj.density, this->max_len);
-    }
-    ~entry() {
-      if (this->density != NULL)
-        free(this->density);
-    }
-  };
-  typedef map<string, cache::entry>::iterator iterator;
-  typedef map<string, cache::entry>::value_type value_type;
-  static const int use_treshold = 10000;
-
-  map<string, cache::entry> table;
-  int max_len;
-
-  cache(const int max_len) : max_len(max_len) {}
-
-  inline entry *get(const string::const_iterator &s, const string::const_iterator &e) {
-    cache::iterator it = this->table.find(string(s, e));
-    if (it == this->table.end())
-      return NULL;
-    else
-      return &((*it).second);
-  }
-  inline void put(const string::const_iterator &s, const string::const_iterator &e,
-                  const cache::entry &entry) {
-    string seq = string(s, e);
-    cache::iterator it = this->table.find(seq);
-    if (it == this->table.end())
-      this->table.insert(cache::value_type(seq, entry));
-  }
-};
-
-
-class results {
-public:
-  vector<int> start;
-  vector<int> len;
-  vector<int> score;
-  vector<string> strand;
-  int *density;
-
-  const int min_score;
-  const int seq_len;
-
-  results(const int seq_len, const int min_score) :
-    min_score(min_score), seq_len(seq_len)
-  {
-    this->density = (int *)calloc(seq_len, sizeof(int));
-    if (this->density == NULL)
-      stop("Unable to allocate memory for results density vector.");
-  }
-  ~results() {
-    if (this->density != NULL)
-      free(this->density);
-  }
-  inline void save_pqs(
-    const pqs_t &pqs, const string::const_iterator ref, const string &strand)
-  {
-    if (pqs.score >= this->min_score) {
-      if (strand == "+")
-        this->start.push_back(pqs.s - ref + 1); // R indexing starts at 1
-      else
-        this->start.push_back(seq_len - (pqs.e - ref) + 1);
-
-      this->len.push_back(pqs.e - pqs.s);
-      this->score.push_back(pqs.score);
-      this->strand.push_back(strand);
-    }
-  }
-  inline void save_density(
-      const string::const_iterator &s, const string::const_iterator &ref,
-      const string &strand, const int *density, const int max_len)
-  {
-    int offset;
-    if (strand == "+") {
-      offset = s - ref;
-      for (int k = 0; k < max_len; ++k)
-        this->density[offset + k] += density[k];
-    }
-    else {
-      offset = (this->seq_len - 1) - (s - ref);
-      for (int k = 0; k < max_len; ++k)
-        this->density[offset - k] += density[k];
-    }
-  }
-  inline void print(const string::const_iterator &ref) const {
-    Rcout << "Results" << endl;
-    for (unsigned i = 0; i < this->start.size(); i++) {
-      Rcout << "PQS[" << i << "]: " << this->start[i] << " "
-            << string(ref + this->start[i], ref + this->start[i] + this->len[i])
-            << " " << this->score[i] << endl;
-    }
-  }
-};
 
 
 class scoring {
@@ -477,15 +355,15 @@ void find_all_runs(
     const string::const_iterator &ref,
     const size_t len,
     string::const_iterator &pqs_start,
-    pqs_t &pqs_best,
-    cache &ctable,
-    cache::entry &pqs_cache,
+    pqs_storage &pqs_storage,
+    pqs_cache &ctable,
+    pqs_cache::entry &pqs_cache,
     int &pqs_cnt,
     results &res)
 {
   string::const_iterator s, e, min_e;
   int score;
-  cache::entry *cache_hit;
+  pqs_cache::entry *cache_hit;
 
   if (i > 0 && start - m[i-1].second < opts.loop_min_len)
     start = min(m[i-1].second + opts.loop_min_len, end); // skip too short loop
@@ -494,7 +372,7 @@ void find_all_runs(
   {
     if (i == 0)
     {// Specific code for the first run matching
-      if (flags.use_cache && pqs_cache.density[0] > cache::use_treshold)
+      if (flags.use_cache && pqs_cache.density[0] > pqs_cache::use_treshold)
       {
         cache_hit = ctable.get(s, min(s + opts.max_len, end));
 
@@ -505,16 +383,11 @@ void find_all_runs(
 
           res.save_density(s, ref, strand, cache_hit->density, opts.max_len);
 
-          if (pqs_best.score && s >= pqs_best.e)
+          if (pqs_storage.best.score && s >= pqs_storage.best.e)
           {// Export PQS because no further overlapping pqs can be found
-            res.save_pqs(pqs_best, ref, strand);
-            pqs_best.score = 0;
+            pqs_storage.export_pqs(res, ref, strand);
           }
-          if (cache_hit->score > pqs_best.score) {
-            pqs_best.score = cache_hit->score;
-            pqs_best.s = s;
-            pqs_best.e = s + cache_hit->len;
-          }
+          pqs_storage.insert(cache_hit->score, s, s + cache_hit->len);
           continue;
         }
       }
@@ -545,13 +418,13 @@ void find_all_runs(
         // Enforce G4 total length limit to be relative to the first G-run start
         find_all_runs(
           subject, strand, i+1, e, min(s + opts.max_len, end), m, run_re_c,
-          opts, flags, sc, ref, len, s, pqs_best, ctable, pqs_cache,
+          opts, flags, sc, ref, len, s, pqs_storage, ctable, pqs_cache,
           pqs_cnt, res
         );
       else if (i < 3)
         find_all_runs(
           subject, strand, i+1, e, end, m, run_re_c, opts, flags, sc, ref, len,
-          pqs_start, pqs_best, ctable, pqs_cache, pqs_cnt, res
+          pqs_start, pqs_storage, ctable, pqs_cache, pqs_cnt, res
         );
       else {
         /* Check user interrupt after reasonable amount of PQS identified to react
@@ -564,10 +437,9 @@ void find_all_runs(
             Rcout << "Search status: " << ceilf((m[0].first - ref)/(float)len*100) << " %\r" << flush;
         }
 
-        if (pqs_best.score && pqs_start >= pqs_best.e)
+        if (pqs_storage.best.score && pqs_start >= pqs_storage.best.e)
         {// Export PQS because no further overlapping pqs can be found
-          res.save_pqs(pqs_best, ref, strand);
-          pqs_best.score = 0;
+          pqs_storage.export_pqs(res, ref, strand);
         }
 
         score = 0;
@@ -581,20 +453,16 @@ void find_all_runs(
 
         if (score && score >= opts.min_score) {
           // Current PQS satisfied all constraints.
+          pqs_storage.insert(score, pqs_start, e);
 
           for (int k = 0; k < e - pqs_start; ++k)
             ++pqs_cache.density[k];
 
-          if (score > pqs_cache.score) {
+          if (score > pqs_cache.score ||
+              (score == pqs_cache.score && pqs_cache.len < e - pqs_start)) {
             // Update properties of caching candidate
             pqs_cache.score = score;
             pqs_cache.len = e - pqs_start;
-          }
-          if (score > pqs_best.score) {
-            // Update properties of best PQS to be exported
-            pqs_best.score = score;
-            pqs_best.s = pqs_start;
-            pqs_best.e = e;
           }
           if (flags.verbose)
             print_pqs(m, score, ref, pqs_cache.density[0]);
@@ -602,7 +470,7 @@ void find_all_runs(
       }
     }
     if (i == 0) {
-      if (flags.use_cache && pqs_cache.density[0] > cache::use_treshold)
+      if (flags.use_cache && pqs_cache.density[0] > pqs_cache::use_treshold)
         ctable.put(s, min(s + opts.max_len, end), pqs_cache);
 
       // Add locally accumulated density to global density array
@@ -618,7 +486,8 @@ void find_all_runs(
  * @param subject DNAString object
  * @param seq DNA sequence
  * @param strand Strand specification
- * @param run_re Run regular expression
+ * @param run_re_c Run regular expression
+ * @param ctable PQS cache table
  * @param sc Scoring options
  * @param opts Algorihtm options
  * @param flags Algorithm flags
@@ -629,25 +498,26 @@ void pqs_search(
     const string &seq,
     const string strand,
     const boost::regex &run_re_c,
-    cache &ctable,
+    pqs_cache &ctable,
     const scoring &sc,
     const opts_t &opts,
     const flags_t &flags,
     results &res)
 {
   run_match m[RUN_CNT];
-  cache::entry pqs_cache(opts.max_len);
-  pqs_t pqs_best;
-  pqs_best.score = 0;
+  pqs_cache::entry pqs_cache(opts.max_len);
   string::const_iterator pqs_start;
   int pqs_cnt = 0;
+  pqs_storage pqs_storage;
 
   // Global sequence length is the only limit for the first G-run
-  find_all_runs(subject, strand, 0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc,
-                seq.begin(), seq.length(), pqs_start, pqs_best, ctable, pqs_cache, pqs_cnt, res);
-
-  if (pqs_best.score)
-    res.save_pqs(pqs_best, seq.begin(), strand);
+  find_all_runs(
+    subject, strand, 0, seq.begin(), seq.end(), m, run_re_c, opts, flags, sc,
+    seq.begin(), seq.length(), pqs_start, pqs_storage, ctable,
+    pqs_cache, pqs_cnt, res
+  );
+  if (pqs_storage.best.score)
+    pqs_storage.export_pqs(res, seq.begin(), strand);
 }
 
 
@@ -803,7 +673,7 @@ SEXP pqsfinder(
   string seq_rc = as<string>(as_character(subject_rc));
 
   results res(seq.length(), opts.min_score);
-  cache ctable(opts.max_len);
+  pqs_cache ctable(opts.max_len);
   boost::regex run_re_c(run_re);
 
   if (flags.debug) {
