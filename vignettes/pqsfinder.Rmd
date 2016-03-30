@@ -17,13 +17,11 @@ output:
 
 # Introduction
 
-The main functionality of the `r Biocpkg("pqsfinder")` package is to detect DNA sequence patterns that are likely to fold into an intramolecular G-quadruplex (G4). G4 is a DNA structure that can form as an alternative to the canonical B-DNA. G4s are believed to be involved in regulation of diverse biological processes, such as telomere maintenance, DNA replication, chromatin formation, transcription, recombination or mutation [@maizels_2014; @kejnovsky_etal_2015]. The main idea of our algorithmic approach is based on the fact that G4 structures arise from compact sequence motifs composed of four consecutive and possibly imperfect guanine runs (G-run) interrupted by loops of semi-arbitrary lengths. The algorithm first identifies four consecutive G-run sequences. Subsequently, it examines the potential of such G-runs to form a stable G4 and assigns a corresponding quatitative score to each. Non-overlapping potential quadruplex-forming sequences (PQS) with positive score are then reported.[^1]
+The main functionality of the `r Biocpkg("pqsfinder")` package is to detect DNA sequence patterns that are likely to fold into an intramolecular G-quadruplex (G4). G4 is a DNA structure that can form as an alternative to the canonical B-DNA. G4s are believed to be involved in regulation of diverse biological processes, such as telomere maintenance, DNA replication, chromatin formation, transcription, recombination or mutation [@maizels_2014; @kejnovsky_etal_2015]. The main idea of our algorithmic approach is based on the fact that G4 structures arise from compact sequence motifs composed of four consecutive and possibly imperfect guanine runs (G-run) interrupted by loops of semi-arbitrary lengths. The algorithm first identifies four consecutive G-run sequences. Subsequently, it examines the potential of such G-runs to form a stable G4 and assigns a corresponding quatitative score to each. Non-overlapping potential quadruplex-forming sequences (PQS) with positive score are then reported.
 
-[^1]: Please, note that this currently has the effect of supressing output of a PQS which is above the `min_score` threshold and is only overlapped by a lower-quality PQS, if such bridging PQS connects it to a cluster containing a higher-quality PQS. Only one (the highest-scoring) PQS is reported per overlap cluster. This regime is not fully satidfactory and will likely be improved in the next version.
+It is important to note that unlike many other approaches, our algorithm is able to detect sequences responsible for G4s folded from imperfect G-runs containing bulges or mismatches and as such is more sensitive than competing algorithms [^1]. We also believe the presented solution is the most scalable, since it can be easily and quickly customized (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details). The program can be made to detect novel or experimental G4 types that might be discovered or studied in future.
 
-It is important to note that unlike many other approaches, our algorithm is able to detect sequences responsible for G4s folded from imperfect G-runs containing bulges or mismatches and as such is more sensitive than competing algorithms [^2]. We also believe the presented solution is the most scalable, since it can be easily and quickly customized (see chapter [Customizing detection algorithm](#customizing-detection-algorithm) for details). The program can be made to detect novel or experimental G4 types that might be discovered or studied in future.
-
-[^2]: We have tested `r Biocpkg('pqsfinder')` on experimentally verified G4 sequences. The results of that work are reflected in default settings of searches. Details of these tests will be presented elsewhere. 
+[^1]: We have tested `r Biocpkg('pqsfinder')` on experimentally verified G4 sequences. The results of that work are reflected in default settings of searches. Details of these tests will be presented elsewhere. 
 
 For those interested in non-B DNA, we have previously authored a similar package that can be used to search for triplexes, another type of non-B DNA structure. For details, please see `r Biocpkg('triplex')` package landing page.
 
@@ -43,7 +41,7 @@ As a simple example, let's find all PQS in a short DNA sequence.
 
 ```{r basic_detection, results='hold'}
 seq <- DNAString("TTTTGGGCGGGAGGAGTGGAGTTTTTAACCCCAAAAATTTGGGAGGGTGGGTGGGAGAA")
-pqs <- pqsfinder(seq, max_len = 30)
+pqs <- pqsfinder(seq)
 pqs
 ```
 
@@ -53,11 +51,9 @@ Detected PQS are returned in the form of a `PQSViews` class, which represents th
 data.frame(b = start(pqs), w = width(pqs), s = strand(pqs), sc = score(pqs))
 ```
 
-By default, `pqsfinder` function reports only the locally best non-overlapping PQS, ignoring any other that would overlap it, even indirectly [^3]. However, it's possible to get numbers of all overlapping PQS at each position of the input sequence. To achieve that, call `density(x)` function on the `PQSViews` object:[^4]
+By default, `pqsfinder` function reports only the locally best non-overlapping PQS, ignoring any other that would overlap it. However, it's possible to get numbers of all overlapping PQS at each position of the input sequence. To achieve that, call `density(x)` function on the `PQSViews` object:[^2]
 
-[^3]: Please see footnote 1.
-
-[^4]: Clusters of overlapping PQS usually have steep edges when the number of neighboring G-runs is low, but could be more spread out in other situations. 
+[^2]: Clusters of overlapping PQS usually have steep edges when the number of neighboring G-runs is low, but could be more spread out in other situations. 
 
 ```{r density}
 density(pqs)
@@ -103,7 +99,7 @@ The more you narrow these options in terms of shorter PQS length, narrower run o
 pqsfinder(seq, max_defects = 0)
 ```
 
-**Example 2:** If you want to report only higher quality PQS, please set `min_score` to the required value:
+**Example 2:** In case you don't mind defects in G-runs, but you want to report only higher quality PQS, increase `min_score` value:
 
 ```{r min_score, results='hold'}
 pqsfinder(seq, min_score = 80)
